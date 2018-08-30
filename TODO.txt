@@ -1,0 +1,14 @@
+Changelog:
+Fixed local variable stack problems
+Void functions working
+Pointer arguments working
+
+TODO:
+Test pointer arguments
+Pointer return arguments
+Multiple return values or structs
+C language hooks
+Control statements
+
+Strings
+Fix tokenizer EOF thingie

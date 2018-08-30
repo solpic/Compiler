@@ -1,0 +1,25 @@
+AUTHOR: Merrill Preska Steinberg
+
+To compile, run:
+g++ *.cpp *.h -std=c++11 -o compiler
+Or whatever executable file you want it to be. It has to be C++11.
+
+To run the compiler type
+
+./compiler filename
+
+Or for verbose mode
+
+./compiler filename verbose
+
+My compiler supports global variables of type integer and can handle string literals on a case by case basis. It supports if statements, while statements, and procedures. It can handle any sort of expression you might want it to use with all sorts of parentheses.
+
+More importantly, it should also give mostly reasonable error messages about syntax mistakes.
+
+There are built in functions for reading and printing ints, and for printing strings.
+
+I included one example source file, sample_src.m
+
+The compiler will make an output assembly file which it will then load into an emulator of a stack machine to run.
+
+The syntax should be clear from the example program, unfortunately there was no unified vision and it came out as a crossover between pascal, C, and something else (maybe Python).
