@@ -6,61 +6,8 @@
 std::ostream* Parser::pout = &std::cout;
 
 using namespace std;
-//Matching string constant definitions
 
 const char *prefix = "Parser: ";
-
-/*
- * CFG:
- * Program -> <declarations>
- *            <func_defs>
- *            <statements>
- *             EOF
- *
- * <procedure> -> procedure <procedure_name>():
- *                <statements>
- *                end
- *
- * <main> -> begin <statements> end
- * <statements> -> <stmt> <stmt_tail>
- * <stmt_tail> -> E | <statements>
- *
- * <stmt> -> <assignment>
- *           <function_call>
- *           <control>
- * <control> -> <if> <while>
- * <if> -> if <expr>: <statements> end
- * <while> -> while <expr>: <statements> end
- * <assignment> -> <var_name> = <expr>;
- * <function_call> -> <func_name>(<params>)
- * <params> -> <expr> <param_tail>
- * <param_tail> -> , <params> | E
- *
- * <expr> -> <num> | <string>
- * <E> -> <T> <E'>
- * <E'> +<T><E'> | -<T><E'> | empty
- * <T> -> <F> <T'>
- * <T'> -> *<F><T'> | /<F><T'> | empty
- * <F> -> <var> | <literal> | -<F> | +<F> | (<E>)
- *
- *
- * <declarations> -> <decl>+
- *
- * <decl> -> <var_decl>
- *
- * <var_decl> -> <type_name> <var_decl_elt>;
- * <var_decl_elt> -> ** <var_name> <var_decl_elt_tail>
- * <var_decl_elt_tail>, <var_decl_elt> | E
- *
- * <func_decl> -> function: <return_vals> <func_name>(<args>);
-
- * <func_def> define: <return_vals> <func_name>(<args>) {
- *                  <declarations>
- *                  <statements>
- *                  };
-
- *
- */
 
 string typeString(ParseVar &p) {
     string s = "";
@@ -118,6 +65,11 @@ bool ptrIntOperatorException(Operator o, ParseVar a, ParseVar b) {
            &&(a.pointerLevel>0&&(b.pointerLevel==0&&b.v==VAR_INT));
 }
 
+void Parser::throwError() {
+    cur()->tellPositionInformation(cout, t);
+    error();
+}
+
 ParseVar Parser::E() {
     ParseVar a = T();
     Operator o;
@@ -128,10 +80,8 @@ ParseVar Parser::E() {
         //Check matching types
         if(!ptrIntOperatorException(o, a, b)&&!typeEqual(a, b)) {
             cout<<"Expected appropriate operand type for type "<<typeString(a)<<" and operator "<<opString<<" got "<<typeString(b)<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
-        //next();
 
         if(o==ADD) {
             g.addOp(new Add(ptrType(a)));
@@ -143,12 +93,10 @@ ParseVar Parser::E() {
             //First check type
             if(a.pointerLevel>0||a.v!=VAR_CHAR) {
                 cout<<"Expected char got "<<typeString(a)<<" at ";
-                cur()->tellPositionInformation(cout, t);
-                error();
+                throwError();
             } else if(b.pointerLevel>0||b.v!=VAR_CHAR) {
                 cout<<"Expected char got "<<typeString(b)<<" at ";
-                cur()->tellPositionInformation(cout, t);
-                error();
+                throwError();
             }
             if(o==AND) {
                 g.addOp(new And(ptrType(a)));
@@ -162,26 +110,8 @@ ParseVar Parser::E() {
         }
     }
     return a;
-    /*
-    char op = cur()->str()[0];
-    while(op=='+'||op=='-') {
-    next();
-    T();
-
-    if(op=='+') {
-    	*pout<<prefix<<"Operator +"<<endl;
-    	g.addOp(Op::add());
-    	asmOut += "add\n";
-    }else if(op=='-') {
-    	*pout<<prefix<<"Operator -"<<endl;
-    	g.addOp(Op::sub());
-    	asmOut += "sub\n";
-    }
-
-    op = cur()->str()[0];
-    }
-    */
 }
+
 bool Parser::matchOperatorT(Operator &op) {
     if(testMatch("*")) {
         op = MULT;
@@ -229,8 +159,7 @@ ParseVar Parser::T() {
         ParseVar b = F();
         if(!typeEqual(a, b)) {
             cout<<"Expected "<<typeString(a)<<" got "<<typeString(b)<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
 
         if(o==MULT) {
@@ -270,82 +199,6 @@ ParseVar Parser::T() {
         }
     }
     return a;
-    /*
-    char op = cur()->str()[0];
-    // / * and logical operators
-    // || && == !=
-    while(op=='*'||op=='/'||op=='|'||op=='&'||op=='='||op=='!'||op=='>'||op=='<') {
-
-    char op2 = 0;
-    if(op!='*'&&op!='/') {
-    	next();
-    	op2 = cur()->str()[0];
-    	if(op=='|'&&op2!='|') {
-    	cout<<"Expected || at ";
-    	cur()->tellPositionInformation(cout, t);
-    	error();
-    	}else if(op=='&'&&op2!='&') {
-    	cout<<"Expected && at ";
-    	cur()->tellPositionInformation(cout, t);
-    	error();
-    	}else if(op=='='&&op2!='=') {
-    	cout<<"Expected == at ";
-    	cur()->tellPositionInformation(cout, t);
-    	error();
-    	}else if(op=='!'&&op2!='=') {
-    	cout<<"Expected != at ";
-    	cur()->tellPositionInformation(cout, t);
-    	error();
-    	}
-    }
-    if(!((op=='<'&&op2!='=')||(op=='>'&&op2!='=')))
-    	next();
-    F();
-
-    if(op=='*') {
-    	*pout<<prefix<<"Operator *"<<endl;
-    	g.addOp(Op::mult());
-    	asmOut += "mult\n";
-    }else if(op=='/') {
-    	*pout<<prefix<<"Operator /"<<endl;
-    	g.addOp(Op::div());
-    	asmOut += "div\n";
-    }else if(op=='&') {
-    	*pout<<prefix<<"Operator &&"<<endl;
-    	g.addOp(Op::opAnd());
-    	asmOut += "and\n";
-    }else if(op=='|') {
-    	*pout<<prefix<<"Operator ||"<<endl;
-    	g.addOp(Op::opOr());
-    	asmOut += "or\n";
-    }else if(op=='!') {
-    	*pout<<prefix<<"Operator !="<<endl;
-    	g.addOp(Op::neq());
-    	asmOut += "neq\n";
-    }else if(op=='=') {
-    	*pout<<prefix<<"Operator =="<<endl;
-    	g.addOp(Op::eq());
-    	asmOut += "eq\n";
-    }else if(op=='<') {
-    	if(op2=='=') {
-    	g.addOp(Op::lesEq());
-    	asmOut += "less-than-eq\n";
-    	}else{
-    	g.addOp(Op::lessThan());
-    	asmOut += "less-than\n";
-    	}
-    }else if(op=='>') {
-    	if(op2=='=') {
-    	g.addOp(Op::grEq());
-    	asmOut += "greater-than-eq\n";
-    	}else{
-    	g.addOp(Op::greaterThan());
-    	asmOut+="greater-than\n";
-    	}
-    }
-    op = cur()->str()[0];
-    }
-    */
 }
 
 ParseVar Parser::typecast() {
@@ -355,8 +208,7 @@ ParseVar Parser::typecast() {
     else if(testMatch("char")) to.v = VAR_CHAR;
     else {
         cout<<"Unrecognized type "<<cur()->str()<<" in typecast at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     }
     next();
 
@@ -437,14 +289,12 @@ ParseVar Parser::F() {
         next();
         if(testMatch("!")) {
             cout<<"! followed by ! is no operation at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
         ParseVar o = F();
         if(o.pointerLevel!=0||o.v!=VAR_CHAR) {
             cout<<"Expected char for ! operator, got "<<typeString(o)<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
 
         g.addOp(new Not());
@@ -455,14 +305,12 @@ ParseVar Parser::F() {
         next();
         if(testMatch("-")) {
             cout<<"- followed by - is no operation at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
         ParseVar o = F();
         if(o.pointerLevel!=0||(o.v!=VAR_INT&&o.v!=VAR_DOUBLE)) {
             cout<<"Expected int or double for - operator, got "<<typeString(o)<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
 
         g.addOp(new Negative(ptrType(o)));
@@ -524,8 +372,7 @@ ParseVar Parser::F() {
             return returnVar(s.varType, 1);
         } else {
             cout<<"Expected variable, got "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
     } else if(testMatch("*")) {
         //Dereference pointer
@@ -558,58 +405,13 @@ ParseVar Parser::F() {
             return returnVar(s.varType, s.pointerLevel);
         } else if(s.type==SYM_FUNC) {
 			return function(s);
-            /*string fname = cur()->str();
-            //Push return vals onto stack
-            //Push arguments onto stack
-            //Push variables onto stack
-            //Push function label onto stack
-            //Call
-            next();
-
-            if(s.retsScopeSize>0) {
-                char returns[s.retsScopeSize];
-                g.addOp(new PushI(s.retsScopeSize, returns));
-                asmOut += "pushempty:rets "+to_string(s.retsScopeSize)+"\n";
-            }
-            match("(");
-            next();
-            for(int i = 0; i<s.numArg; i++) {
-                E();
-                if(i<s.numArg-1) {
-                    match(",");
-                    next();
-                }
-            }
-            match(")");
-            next();
-
-            if(s.localsScopeSize>0) {
-                char buffer[s.localsScopeSize];
-                g.addOp(new PushI(s.localsScopeSize, buffer));
-                asmOut += "pushempty:locals "+to_string(s.localsScopeSize)+"\n";
-            }
-
-            g.addOp(new PushLbl(s.funcLabel));
-            asmOut += "push "+fname+"\n";
-
-            g.addOp(new Call());
-            asmOut += "call\n";
-
-            if(!s.isVoid) {
-                return s.returnType;
-            } else {
-                return returnVar(VAR_VOID, 0);
-            }*/
         } else {
             cout<<"Expected variable or function, got "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
     } else {
         cout<<"Unexpected token "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        sym.dump(cout);
-        error();
+        throwError();
     }
 }
 
@@ -625,17 +427,13 @@ Token* Parser::cur() {
 }
 
 Token* Parser::next() {
-    //cout<<"Current: "<<cur()->str()<<" at ";
-    // cur()->tellPositionInformation(cout, t);
-    //cout<<"Advancing"<<endl;
     return t->advance();
 }
 
 void Parser::match(const char *s) {
     if(!cur()->equals(s)) {
         cout<<"Expected token "<<s<<", got "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     } else {
         *pout<<prefix<<"Matched "<<s<<endl;
     }
@@ -644,8 +442,7 @@ void Parser::match(const char *s) {
 void Parser::matchType(TokenType type, const char *expected) {
     if(cur()->getType()!=type) {
         cout<<"Expected type "<<type<<", got "<<cur()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     } else {
         *pout<<prefix<<"Matched type of "<<expected<<endl;
     }
@@ -675,8 +472,7 @@ void Parser::assignment() {
 
     if(!typeEqual(v, q)) {
         cout<<"Can't assign "<<typeString(v)<<" to "<<typeString(q)<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     }
 
     g.addOp(new Pop(s.getAddr(), s.size()));
@@ -691,8 +487,7 @@ void Parser::pointerAssignment() {
     v.pointerLevel--;
     if(!typeEqual(v, q)) {
         cout<<"Can't dereference "<<typeString(q)<<" into "<<typeString(v)<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     }
 
     g.addOp(new PopToPtr(size(q)));
@@ -762,25 +557,6 @@ void Parser::builtInFunction(Symbol &s) {
         g.addOp(new PrintNum(ptrType(v)));
         asmOut+="printnum "+typeString(v)+"\n";
     }
-    /*
-    else if(s.builtInFunc==F_PRINT) {
-    next();
-    match("(");
-    next();
-    E();
-    match(")");
-    next();
-    g.addOp(Op::print());
-    asmOut+="print\n";
-    }else if(s.builtInFunc==F_READINT) {
-    next();
-    match("("); next();
-    match(")"); next();
-
-    g.addOp(Op::readInt());
-    asmOut+="readint\n";
-    }
-    */
 }
 
 void Parser::statements() {
@@ -804,24 +580,6 @@ void Parser::statements() {
             match(";");
             next();
         }
-
-        /*else if(type==Procedure) {
-        	next();
-        	match("("); next();
-        	match(")"); next();
-        	match(";"); next();
-
-        	int retLbl = g.curLabel++;
-        	g.addOp(Op::pushLbl(retLbl));
-        	asmOut+="pushlbl L"+to_string(retLbl)+"\n";
-        	g.addOp(Op::pushLbl(s.procLabel));
-        	asmOut+="pushlbl "+cur()->str()+":L"+to_string(s.procLabel)+"\n";
-        	g.addOp(Op::opJmp());
-        	asmOut+="jmp\n";
-
-        	g.addOp(Op::label(retLbl));
-        	asmOut+="L"+to_string(retLbl)+"\n";
-        }*/
     } else if(testMatch("*")) {
         //Pointer assignment
         next();
@@ -832,8 +590,7 @@ void Parser::statements() {
         next();
         if(!currentFunc) {
             cout<<"Can't return without enclosing function at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
         //Evaluate return arguments and push them into old stack
         //for(int i = 0; i<currentFunc->numRet; i++) {
@@ -844,7 +601,6 @@ void Parser::statements() {
 
             g.addOp(new Pop(ret.addr, ret.size()));
             asmOut += "pop return value "+to_string(i)+"\n";
-            //}
         }
         match(";");
         next();
@@ -856,42 +612,12 @@ void Parser::statements() {
 
         g.addOp(new Return());
         asmOut += "return\n";
-    }/*else if(testMatch("}")){
-		if(!currentFunc){
-		cout<<"Can't return without enclosing function at ";
-		cur()->tellPositionInformation(cout, t);
-		error();
-	}
-
-	int scope = currentFunc->localsScopeSize + currentFunc->argsScopeSize;
-	g.addOp(new PushI(LBL_SIZE, &scope));
-	asmOut += "pushi "+to_string(scope)+", size: "+to_string(LBL_SIZE)+"\n";
-
-	g.addOp(new Return());
-	asmOut += "return\n";
-	}*/else {
+    }else {
         cout<<"Expected statement, got "<<cur()->str()<<" at ";
         cur()->tellPositionInformation(cout, t);
         sym.dump(cout);
         error();
     }
-}
-
-void Parser::main() {
-    /*
-    match("begin");
-    next();
-
-    g.addOp(new Label());
-    asmOut += "L"+to_string(labelMain)+":\n";
-
-    statements();
-    match("end");
-    next();
-
-    g.addOp(new Halt());
-    asmOut += "halt\n";
-     */
 }
 
 Parser::Parser(Tokenizer *tok) {
@@ -920,45 +646,6 @@ Parser::Parser(Tokenizer *tok) {
     sym.addSymbol("readint", sReadInt);
 }
 
-
-void Parser::procedures() {
-    /*
-    while(testMatch("procedure")) {
-    match("procedure"); next();
-
-    string procName = cur()->str();
-    next();
-    Symbol s(Procedure);
-
-    if(sym.keyExists(procName)) {
-    	cout<<"Duplicate symbol "<<procName<<" at ";
-    	cur()->tellPositionInformation(cout, t);
-    	error();
-    }else{
-    	int label = g.curLabel++;
-    	s.procLabel = label;
-    	sym.addSymbol(procName, s);
-
-    	match("("); next();
-    	match(")"); next();
-    	match(":"); next();
-
-    	g.addOp(Op::label(label));
-    	asmOut+="L"+to_string(label)+":\n";
-
-    	statements();
-
-    	match("end"); next();
-
-    	g.addOp(Op::opJmp());
-    	asmOut+="jmp\n";
-
-    	*pout<<prefix<<"End of procedure"<<endl;
-    }
-    }
-    */
-}
-
 void Parser::func_def() {
     next();
 
@@ -974,17 +661,13 @@ void Parser::func_def() {
     //func name
     if(!testMatchType(TK_IDEN)) {
         cout<<"Expected identifier, got "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
-        return;
+        throwError();
     }
 
     //Check that it exists
     if(!sym.keyExists(cur()->str())) {
         cout<<"Trying to define undeclared function "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
-        return;
+        throwError();
     }
 
     Symbol *s = sym.getPtr(cur()->str());
@@ -1008,15 +691,11 @@ void Parser::func_def() {
         }
         if(!testMatchType(TK_IDEN)) {
             cout<<"Expected identifier, got "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
-            return;
+            throwError();
         }
         if(sym.keyExists(cur()->str())) {
             cout<<"Duplicate symbol "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
-            return;
+            throwError();
         }
         argNames[i++] = cur()->str();
         next();
@@ -1114,33 +793,6 @@ void Parser::parse() {
     asmOut += "halt\n";
 }
 
-/*
-void Parser::str_decl() {
-	matchType(Identifier, "identifier");
-
-	string name = cur()->str();
-	if(sym.keyExists(name)) {
-	cout<<"Duplicate symbol "<<name<<" at ";
-	cur()->tellPositionInformation(cout, t);
-	error();
-	}else{
-	next();
-	match(":");
-	next();
-	matchType(Str, "string literal");
-	Symbol s(StringLiteral);
-	s.lit = new char[cur()->str().length()];
-	strcpy(s.lit, cur()->str().c_str());
-
-	sym.addSymbol(name, s);
-	next();
-
-	match(";"); next();
-	}
-
-}
- * */
-
 //<var_decl> -> <type_name> <var_decl_elt>;
 //<var_decl_elt> -> ** <var_name> <var_decl_elt_tail>
 //<var_decl_elt_tail>, <var_decl_elt> | E
@@ -1164,9 +816,7 @@ void Parser::var_decl(VarType varType) {
         if(sym.keyExists(cur()->str())
                 ||find(varNames.begin(), varNames.end(), cur()->str())!=varNames.end()) {
             cout<<"Duplicate symbol "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
-            return;
+            throwError();
         }
 
         varNames.push_back(cur()->str());
@@ -1181,8 +831,7 @@ void Parser::var_decl(VarType varType) {
             next();
         } else {
             cout<<"Expected ; or , got "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
     } while(!listDone);
 
@@ -1208,8 +857,7 @@ ParseVar Parser::parseFunctionType() {
     else if(testMatch("char")) v = VAR_CHAR;
     else {
         cout<<"Expected variable return type, got "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
+        throwError();
     }
     next();
     int pointerLevel = 0;
@@ -1225,26 +873,7 @@ void Parser::func_decl() {
 	next();
     match(":");
     next();
-    //list<Variable> retVals;
-    //list<Variable> args;
-
-    //Return values
-    /*while(!testMatch(")")) {
-    Variable v;
-    if(testMatch("int")) {
-    	v.type = VAR_INT;
-    	retVals.push_back(v);
-    }else if(testMatch("double")) {
-    	v.type = VAR_DOUBLE;
-    	retVals.push_back(v);
-    }else if(testMatch("char")) {
-    	v.type = VAR_CHAR;
-    	retVals.push_back(v);
-    }
-    next();
-    //This allows for trailing comma
-    if(testMatch(", ")) next();
-    }*/
+    
     ParseVar ret;
     bool isVoid = false;
     if(testMatch("void")) {
@@ -1257,17 +886,13 @@ void Parser::func_decl() {
     //func name
     if(!testMatchType(TK_IDEN)) {
         cout<<"Expected identifier, got "<<cur()->str()<<" at ";
-        cur()->tellPositionInformation(cout, t);
-        error();
-        return;
+        throwError();
     }
 
     //Check key is unique
     if(sym.keyExists(cur()->str())) {
         cout<<"Key "<<cur()->str()<<" already exists ";
-        cur()->tellPositionInformation(cout, t);
-        error();
-        return;
+        throwError();
     }
 
     string funcName = cur()->str();
@@ -1304,8 +929,7 @@ void Parser::func_decl() {
             done = true;
         } else {
             cout<<"Expected , or ) in function declaration, got "<<cur()->str()<<" at ";
-            cur()->tellPositionInformation(cout, t);
-            error();
+            throwError();
         }
     }
     match(";");

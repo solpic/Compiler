@@ -25,8 +25,6 @@ private:
     std::string asmOut;
     static std::ostream *pout;
     
-    void procedures();
-    
     void declarations(bool funcs);
     void decl();
     void decl_tail();
@@ -42,7 +40,6 @@ private:
     void func_decl();
     void func_def();
 
-    void main();
     void statements();
     void assignment();
     void pointerAssignment();
@@ -52,6 +49,7 @@ private:
     ParseVar T();
     ParseVar F();
     ParseVar function(Symbol &s);
+    void throwError();
     
     bool matchOperatorE(Operator &op);
     bool matchOperatorT(Operator &op);

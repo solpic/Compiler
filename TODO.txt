@@ -12,3 +12,7 @@ Control statements
 
 Strings
 Fix tokenizer EOF thingie
+
+REFACTORIZATION TODO:
+Remove unnecessary comments
+Standardize error exception
