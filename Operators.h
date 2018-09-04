@@ -22,7 +22,7 @@ enum Operator {
 
 class TypeOperator: public Op {
     public:
-        VarType type;
+        SerializedType type;
         int dataSize() {
             return sizeof(type);
         }
@@ -40,7 +40,7 @@ class Negative: public TypeOperator {
         Negative() {
             code = OP_NEG;
         }
-        Negative(VarType t) {
+        Negative(SerializedType t) {
             code = OP_NEG;
             type = t;
         }
@@ -63,7 +63,7 @@ public:\
         acceptPtr = acceptsPtrs;\
         code = opcode;\
     }\
-    name(VarType t) {\
+    name(SerializedType t) {\
         acceptPtr = acceptsPtrs;\
         code = opcode;\
         type = t;\

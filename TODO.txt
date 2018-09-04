@@ -1,18 +1,7 @@
-Changelog:
-Fixed local variable stack problems
-Void functions working
-Pointer arguments working
+REFACTORING:
 
-TODO:
-Test pointer arguments
-Pointer return arguments
-Multiple return values or structs
-C language hooks
-Control statements
+Get rid of ParseVar,
+replace with Type
 
-Strings
-Fix tokenizer EOF thingie
-
-REFACTORIZATION TODO:
-Remove unnecessary comments
-Standardize error exception
+Type consolidates all the ParseVar related stuff,
+as well as handling Operater binary serialization

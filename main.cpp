@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     //Enter name of source file here
     char* srcFile = argv[1];
     //Enter name of output file here
-    char* outFile = "output.out";
+    char outFile[] = "output.out";
     int quiet = 1;
     cout<<"Quiet? ";
     cin>>quiet;

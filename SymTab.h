@@ -6,21 +6,11 @@
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
+#include "Type.h"
 //#include "Generator.h"
 
 #define symmap std::unordered_map<std::string, Symbol>
 
-typedef long t_int;
-typedef double t_dbl;
-typedef char t_char;
-typedef int LBL;
-typedef int t_ptr;
-#define LBL_SIZE sizeof(int)
-
-#define INT_SIZE sizeof(t_int)
-#define DBL_SIZE sizeof(t_dbl)
-#define CHAR_SIZE sizeof(t_char)
-#define PTR_SIZE sizeof(t_ptr)
 struct DataHeader{
     unsigned int size;
 };
@@ -36,28 +26,6 @@ enum SymbolType{
     SYM_STRINGLIT = 4,
     SYM_CONTROL = 5,
     Procedure = 7
-};
-
-extern int varSizes[];
-
-enum VarType{
-    VAR_INT = 0,
-    VAR_DOUBLE = 1,
-    VAR_CHAR = 2,
-    VAR_PTR = 3, 
-    VAR_VOID = 4
-};
-
-
-struct ParseVar{
-    VarType v;
-    int pointerLevel;
-};
-
-VarType parseToVar(ParseVar p);
-
-struct Variable{
-    VarType type;
 };
 
 enum BuiltInFunction{
@@ -81,24 +49,22 @@ public:
     BuiltInFunction builtInFunc;
     
     //If type==SYM_VAR
-    VarType varType;
+    Type varType;
     /*
      * 1 is int *j;
      * 2 is int **j;
      * etc
      */
-    VarType pointerType;
-    int pointerLevel;
     
     //If type==SYM_FUNC
     //int numRet;
     //Variable *rets;
     
     bool isVoid;
-    ParseVar returnType;
+    Type returnType;
     
     int numArg;
-    ParseVar *args;
+    Type *args;
     LBL funcLabel;
     int localsScopeSize;
     int argsScopeSize;
@@ -117,27 +83,13 @@ public:
 
     int size() {
         if(type==SYM_VAR) {
-            if(pointerLevel>0) return PTR_SIZE;
-            switch(varType) {
-                case VAR_INT:
-                return INT_SIZE;
-                break;
-                case VAR_DOUBLE:
-                return DBL_SIZE;
-                break;
-                case VAR_CHAR:
-                return CHAR_SIZE;
-                default:
-                return 0;
-                break;
-            }
+            return varType.size();
         }
     
     }
     SymbolType getType() { return type; }
     ~Symbol() {}
 };
-const char *typeToString(VarType v);
 
 class SymTab{
 private:

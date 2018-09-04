@@ -112,10 +112,10 @@ public:
 
 class Typecast: public Op{
 public:
-    VarType to;
-    VarType from;
+    SerializedType to;
+    SerializedType from;
     Typecast() { code = OP_CAST; }
-    Typecast(VarType t, VarType f) {
+    Typecast(SerializedType t, SerializedType f) {
         to = t;
         from = f;
         code = OP_CAST;
@@ -211,9 +211,9 @@ public:
 
 class PrintNum: public Op{
 public:
-    VarType type;
+    SerializedType type;
     PrintNum() { code = op_printint; }
-    PrintNum(VarType v) {
+    PrintNum(SerializedType v) {
         type = v;
         code = op_printint;
     }

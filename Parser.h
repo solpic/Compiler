@@ -28,7 +28,7 @@ private:
     void declarations(bool funcs);
     void decl();
     void decl_tail();
-    void var_decl(VarType varType);
+    void var_decl();
     void match(const char *s);
     bool testMatch(const char *s);
     Symbol *currentFunc;
@@ -44,16 +44,15 @@ private:
     void assignment();
     void pointerAssignment();
     
-    ParseVar typecast();
-    ParseVar E();
-    ParseVar T();
-    ParseVar F();
-    ParseVar function(Symbol &s);
+    Type typecast();
+    Type E();
+    Type T();
+    Type F();
+    void function(Symbol &s);
     void throwError();
     
     bool matchOperatorE(Operator &op);
     bool matchOperatorT(Operator &op);
-    ParseVar parseFunctionType();
     
     void controlStatement(Symbol &s);
     

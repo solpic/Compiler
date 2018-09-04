@@ -13,9 +13,9 @@ void negOp(Emulator &e) {
 }
 
 void Negative::run(Emulator &e) {
-    if(type==VAR_DOUBLE) {
+    if(type==BIN_DBL) {
         negOp<t_dbl>(e);
-    }else if(type==VAR_INT) {
+    }else if(type==BIN_INT) {
         negOp<t_int>(e);
     }else{
         cout<<"NEG: Unrecognized type"<<endl;
@@ -54,16 +54,16 @@ void binaryOperator(Emulator &e, C (*b_op)(A, B)) {
  
 #define OP_RUN_DEF(cname, op, name)\
 void cname::run(Emulator &e) {\
-    if(type==VAR_CHAR)\
+    if(type==BIN_CHAR)\
         binaryOperator<t_char, t_char, t_char>(e, op<t_char, t_char, t_char>);\
-    else if(type==VAR_DOUBLE) \
+    else if(type==BIN_DBL) \
         binaryOperator<t_dbl, t_dbl, t_dbl>(e, op<t_dbl, t_dbl, t_dbl>);\
-    else if(type==VAR_INT)\
+    else if(type==BIN_INT)\
         binaryOperator<t_int, t_int, t_int>(e, op<t_int, t_int, t_int>);\
-    else if(type==VAR_PTR&&acceptPtr)\
+    else if(type==BIN_PTR&&acceptPtr)\
         ptrRun(e);\
     else{\
-        cout<<name<<": Unrecognized type "<<typeToString(type)<<endl;\
+        cout<<name<<": Unrecognized type "<<Type::toString(type)<<endl;\
         error();\
     }\
     e.ip += opSize();\
@@ -78,13 +78,13 @@ void cname::run(Emulator &e) {\
  
 #define OP_RUN_DEF_RET_CHAR(cname, op, name)\
 void cname::run(Emulator &e) {\
-    if(type==VAR_CHAR)\
+    if(type==BIN_CHAR)\
         binaryOperator<t_char, t_char, t_char>(e, op<t_char, t_char, t_char>);\
-    else if(type==VAR_DOUBLE) \
+    else if(type==BIN_DBL) \
         binaryOperator<t_dbl, t_dbl, t_char>(e, op<t_dbl, t_dbl, t_char>);\
-    else if(type==VAR_INT)\
+    else if(type==BIN_INT)\
         binaryOperator<t_int, t_int, t_char>(e, op<t_int, t_int, t_char>);\
-    else if(type==VAR_PTR&&acceptPtr)\
+    else if(type==BIN_PTR&&acceptPtr)\
         binaryOperator<t_ptr, t_ptr, t_char>(e, op<t_ptr, t_ptr, t_char>);\
     else{\
         cout<<name<<": Unrecognized type"<<endl;\
@@ -161,7 +161,7 @@ OP_RUN_DEF_RET_CHAR(CmpLessEq, lesEqOp, "LESSEQ")
 OP_TMP_DEF(andOp, &&)
 EMPTY_PTR_RUN(And)
 void And::run(Emulator &e) {
-    if(type==VAR_CHAR) {
+    if(type==BIN_CHAR) {
         binaryOperator<t_char, t_char, t_char>(e, andOp<t_char, t_char, t_char>);
     }else{
         cout<<"AND: Unrecognized type"<<endl;
@@ -175,7 +175,7 @@ void And::run(Emulator &e) {
 OP_TMP_DEF(orOp, ||)
 EMPTY_PTR_RUN(Or)
 void Or::run(Emulator &e) {
-    if(type==VAR_CHAR) {
+    if(type==BIN_CHAR) {
         binaryOperator<t_char, t_char, t_char>(e, orOp<t_char, t_char, t_char>);
     }else{
         cout<<"OR: Unrecognized type"<<endl;

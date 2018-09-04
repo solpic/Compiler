@@ -9,36 +9,6 @@ using namespace std;
 
 const char *prefix = "Parser: ";
 
-string typeString(ParseVar &p) {
-    string s = "";
-    for(int i = 0; i<p.pointerLevel; i++) s+="*";
-    s+=typeToString(p.v);
-    return s;
-}
-
-VarType ptrType(ParseVar &p) {
-    if(p.pointerLevel>0) return VAR_PTR;
-    else return p.v;
-}
-
-ParseVar returnVar(VarType v, int pointerLevel) {
-    ParseVar p;
-    p.v = v;
-    p.pointerLevel = pointerLevel;
-    return p;
-}
-
-int size(ParseVar a) {
-    if(a.pointerLevel==0) {
-        return varSizes[a.v];
-    } else
-        return PTR_SIZE;
-}
-
-bool typeEqual(ParseVar a, ParseVar b) {
-    return (a.v==b.v&&a.pointerLevel==b.pointerLevel);
-}
-
 bool Parser::matchOperatorE(Operator &op) {
     if(testMatch("+")) {
         op = ADD;
@@ -60,9 +30,9 @@ bool Parser::matchOperatorE(Operator &op) {
     return false;
 }
 
-bool ptrIntOperatorException(Operator o, ParseVar a, ParseVar b) {
+bool ptrIntOperatorException(Operator o, Type a, Type b) {
     return (o==ADD||o==SUBTRACT)
-           &&(a.pointerLevel>0&&(b.pointerLevel==0&&b.v==VAR_INT));
+            &&(a.toSerializedType()==BIN_PTR&&b.toSerializedType()==BIN_INT);
 }
 
 void Parser::throwError() {
@@ -70,43 +40,42 @@ void Parser::throwError() {
     error();
 }
 
-ParseVar Parser::E() {
-    ParseVar a = T();
+Type Parser::E() {
+    Type a = T();
     Operator o;
     string opString = cur()->str();
     while(matchOperatorE(o)) {
         next();
-        ParseVar b = T();
+        Type b = T();
         //Check matching types
-        if(!ptrIntOperatorException(o, a, b)&&!typeEqual(a, b)) {
-            cout<<"Expected appropriate operand type for type "<<typeString(a)<<" and operator "<<opString<<" got "<<typeString(b)<<" at ";
+        if(!ptrIntOperatorException(o, a, b)&&!Type::equals(a, b)) {
+            cout<<"Expected appropriate operand type for type "<<a.toString()<<" and operator "<<opString<<" got "<<b.toString()<<" at ";
             throwError();
         }
 
         if(o==ADD) {
-            g.addOp(new Add(ptrType(a)));
+            g.addOp(new Add(a.toSerializedType()));
             asmOut += "add\n";
         } else if(o==SUBTRACT) {
-            g.addOp(new Sub(ptrType(a)));
+            g.addOp(new Sub(a.toSerializedType()));
             asmOut += "sub\n";
         } else if(o==AND||o==OR) {
             //First check type
-            if(a.pointerLevel>0||a.v!=VAR_CHAR) {
-                cout<<"Expected char got "<<typeString(a)<<" at ";
+            if(a.isBType(BIN_CHAR)) {
+                cout<<"Expected char got "<<a.toString()<<" at ";
                 throwError();
-            } else if(b.pointerLevel>0||b.v!=VAR_CHAR) {
-                cout<<"Expected char got "<<typeString(b)<<" at ";
+            } else if(b.isBType(BIN_CHAR)) {
+                cout<<"Expected char got "<<b.toString()<<" at ";
                 throwError();
             }
             if(o==AND) {
-                g.addOp(new And(ptrType(a)));
+                g.addOp(new And(a.toSerializedType()));
                 asmOut += "and\n";
             } else if(o==OR) {
-                g.addOp(new Or(ptrType(a)));
+                g.addOp(new Or(a.toSerializedType()));
                 asmOut += "or\n";
             }
-            a.pointerLevel = 0;
-            a.v = VAR_CHAR;
+            a = Type::tChar();
         }
     }
     return a;
@@ -149,93 +118,81 @@ bool Parser::matchOperatorT(Operator &op) {
     return false;
 }
 
-ParseVar Parser::T() {
-    ParseVar a = F();
+Type Parser::T() {
+    Type a = F();
     Operator o;
     string opString = cur()->str();
     while(matchOperatorT(o)) {
         bool isBool = false;
         next();
-        ParseVar b = F();
-        if(!typeEqual(a, b)) {
-            cout<<"Expected "<<typeString(a)<<" got "<<typeString(b)<<" at ";
+        Type b = F();
+        if(!Type::equals(a, b)) {
+            cout<<"Expected "<<a<<" got "<<b<<" at ";
             throwError();
         }
 
         if(o==MULT) {
-            g.addOp(new Mult(ptrType(a)));
+            g.addOp(new Mult(a.toSerializedType()));
             asmOut += "mult\n";
         } else if(o==DIV) {
-            g.addOp(new Div(ptrType(a)));
+            g.addOp(new Div(a.toSerializedType()));
             asmOut+="div\n";
         } else if(o==EQ) {
-            g.addOp(new CmpEq(ptrType(a)));
+            g.addOp(new CmpEq(a.toSerializedType()));
             isBool = true;
             asmOut+="eq\n";
         } else if(o==NEQ) {
-            g.addOp(new CmpNeq(ptrType(a)));
+            g.addOp(new CmpNeq(a.toSerializedType()));
             isBool = true;
             asmOut+= "neq\n";
         } else if(o==GRTR) {
-            g.addOp(new CmpGrtr(ptrType(a)));
+            g.addOp(new CmpGrtr(a.toSerializedType()));
             isBool = true;
             asmOut += "grtr\n";
         } else if(o==GRTR_EQ) {
-            g.addOp(new CmpGrtrEq(ptrType(a)));
+            g.addOp(new CmpGrtrEq(a.toSerializedType()));
             isBool = true;
             asmOut += "grtr_eq\n";
         } else if(o==LESS) {
-            g.addOp(new CmpLess(ptrType(a)));
+            g.addOp(new CmpLess(a.toSerializedType()));
             isBool = true;
             asmOut += "less\n";
         } else if(o==LESS_EQ) {
-            g.addOp(new CmpLessEq(ptrType(a)));
+            g.addOp(new CmpLessEq(a.toSerializedType()));
             isBool = true;
             asmOut += "less_eq\n";
         }
         if(isBool) {
-            a.pointerLevel = 0;
-            a.v = VAR_CHAR;
+            a = Type::tChar();
         }
     }
     return a;
 }
 
-ParseVar Parser::typecast() {
-    ParseVar to;
-    if(testMatch("int")) to.v = VAR_INT;
-    else if(testMatch("double")) to.v = VAR_DOUBLE;
-    else if(testMatch("char")) to.v = VAR_CHAR;
-    else {
-        cout<<"Unrecognized type "<<cur()->str()<<" in typecast at ";
-        throwError();
-    }
-    next();
-
-    to.pointerLevel = 0;
-    while(testMatch("*")) {
-        to.pointerLevel++;
-        next();
-    }
+Type Parser::typecast() {
+    Type to = Type::parse(t);
 
     match("(");
     next();
-    ParseVar from = E();
+    Type from = E();
     match(")");
     next();
 
-    VarType to_actual = to.pointerLevel>0?VAR_PTR:to.v;
-    VarType frm_actual = from.pointerLevel>0?VAR_PTR:from.v;
+    SerializedType to_actual = to.toSerializedType();
+    SerializedType frm_actual = from.toSerializedType();
 
     if(to_actual!=frm_actual) {
         g.addOp(new Typecast(to_actual, frm_actual));
-        asmOut += "typecast "+typeString(to)+" to "+typeString(from)+"\n";
+        asmOut += "typecast "+to.toString()+" to "+from.toString();+"\n";
+    }else{
+        cout<<"Empty typecast from "<<from<<" to "<<to<<endl;
+        throwError();
     }
 
     return to;
 }
 
-ParseVar Parser::function(Symbol &s) {
+void Parser::function(Symbol &s) {
     string fname = cur()->str();
     //Push return vals onto stack
     //Push arguments onto stack
@@ -273,16 +230,9 @@ ParseVar Parser::function(Symbol &s) {
 
     g.addOp(new Call());
     asmOut += "call\n";
-
-    if(!s.isVoid) {
-        cout<<"Return: "<<s.returnType.v<<", "<<s.returnType.pointerLevel<<endl;
-        return s.returnType;
-    } else {
-        return returnVar(VAR_VOID, 0);
-    }
 }
 
-ParseVar Parser::F() {
+Type Parser::F() {
     //NUM | (E) | VARIABLE | &VARIABLE | STRING_LIT | *E | typecast(E) | true | false | !F | -F
     if(testMatch("!")) {
         *pout<<prefix<<"!"<<endl;
@@ -291,15 +241,15 @@ ParseVar Parser::F() {
             cout<<"! followed by ! is no operation at ";
             throwError();
         }
-        ParseVar o = F();
-        if(o.pointerLevel!=0||o.v!=VAR_CHAR) {
-            cout<<"Expected char for ! operator, got "<<typeString(o)<<" at ";
+        Type o = F();
+        if(o.isChar()) {
+            cout<<"Expected char for ! operator, got "<<o<<" at ";
             throwError();
         }
 
         g.addOp(new Not());
         asmOut+="not\n";
-        return returnVar(VAR_CHAR, 0);
+        return Type::tChar();
     } else if(testMatch("-")) {
         *pout<<prefix<<"-"<<endl;
         next();
@@ -307,13 +257,13 @@ ParseVar Parser::F() {
             cout<<"- followed by - is no operation at ";
             throwError();
         }
-        ParseVar o = F();
-        if(o.pointerLevel!=0||(o.v!=VAR_INT&&o.v!=VAR_DOUBLE)) {
-            cout<<"Expected int or double for - operator, got "<<typeString(o)<<" at ";
+        Type o = F();
+        if(o.isInt()||o.isDbl()) {
+            cout<<"Expected int or double for - operator, got "<<o<<" at ";
             throwError();
         }
 
-        g.addOp(new Negative(ptrType(o)));
+        g.addOp(new Negative(o.toSerializedType()));
         asmOut+="negative\n";
         return o;
     } else if(testMatch("true")||testMatch("false")) {
@@ -322,7 +272,7 @@ ParseVar Parser::F() {
         g.addOp(new PushI(sizeof(c), &c));
         asmOut += "pushi "+to_string(c)+"\n";
         next();
-        return returnVar(VAR_CHAR, 0);
+        return Type::tChar();
     } else if(testMatchType(TK_INT)) {
         *pout<<prefix<<"Matched number literal "<<cur()->str()<<endl;
         t_int i = stoi(cur()->str());
@@ -332,7 +282,7 @@ ParseVar Parser::F() {
 
         next();
 
-        return returnVar(VAR_INT, 0);
+        return Type::tInt();
     } else if(testMatchType(TK_DOUBLE)) {
         *pout<<prefix<<"Matched number literal "<<cur()->str()<<endl;
         t_dbl d = stod(cur()->str());
@@ -342,7 +292,7 @@ ParseVar Parser::F() {
 
         next();
 
-        return returnVar(VAR_DOUBLE, 0);
+        return Type::tDbl();
     } else if(testMatchType(TK_CHAR)) {
         *pout<<prefix<<"Matched character literal "<<cur()->str()<<endl;
         t_char c = cur()->str()[0];
@@ -352,11 +302,11 @@ ParseVar Parser::F() {
 
         next();
 
-        return returnVar(VAR_CHAR, 0);
+        return Type::tChar();
     } else if(testMatch("(")) {
         match("(");
         next();
-        ParseVar v = E();
+        Type v = E();
         match(")");
         next();
         return v;
@@ -369,7 +319,7 @@ ParseVar Parser::F() {
             g.addOp(new PushI(PTR_SIZE, &s.addr));
             asmOut += "pushI &"+cur()->str()+": "+to_string(s.addr)+"\n";
             next();
-            return returnVar(s.varType, 1);
+            return s.varType;
         } else {
             cout<<"Expected variable, got "<<cur()->str()<<" at ";
             throwError();
@@ -378,16 +328,17 @@ ParseVar Parser::F() {
         //Dereference pointer
         match("*");
         next();
-        ParseVar p = E();
-        if(p.pointerLevel<=0) {
-            cout<<"Expected pointer for dereference, instead got "<<typeToString(p.v)<<endl;
+        Type p = E();
+        if(p.isPtr()) {
+            cout<<"Expected pointer for dereference, instead got "<<p<<endl;
             error();
         }
 
-        g.addOp(new PushPtr(varSizes[p.v]));
-        asmOut += "pushptr "+to_string(p.v)+": "+to_string(varSizes[p.v])+"\n";
+        g.addOp(new PushPtr(p.size()));
+        asmOut += "pushptr "+p.toString()+": "+to_string(p.size())+"\n";
 
-        return returnVar(p.v, p.pointerLevel-1);
+        p.dereference();
+        return p;
     } else if(testMatchType(TK_IDEN)) {
         //First check if its a typecast
         if(testMatch("int")||testMatch("double")||testMatch("char")) {
@@ -402,9 +353,10 @@ ParseVar Parser::F() {
             next();
 
 
-            return returnVar(s.varType, s.pointerLevel);
+            return s.varType;
         } else if(s.type==SYM_FUNC) {
-			return function(s);
+			function(s);
+            return s.returnType;
         } else {
             cout<<"Expected variable or function, got "<<cur()->str()<<" at ";
             throwError();
@@ -463,15 +415,13 @@ void Parser::assignment() {
     match("=");
     next();
 
-    ParseVar v = E();
+    Type v = E();
     Symbol s = sym.get(varName);
 
-    ParseVar q;
-    q.v = s.varType;
-    q.pointerLevel = s.pointerLevel;
+    Type q = s.varType;
 
-    if(!typeEqual(v, q)) {
-        cout<<"Can't assign "<<typeString(v)<<" to "<<typeString(q)<<" at ";
+    if(Type::equals(v, q)) {
+        cout<<"Can't assign "<<v<<" to "<<q<<" at ";
         throwError();
     }
 
@@ -480,18 +430,18 @@ void Parser::assignment() {
 }
 
 void Parser::pointerAssignment() {
-    ParseVar v = E();
+    Type v = E();
     match("=");
     next();
-    ParseVar q = E();
-    v.pointerLevel--;
-    if(!typeEqual(v, q)) {
-        cout<<"Can't dereference "<<typeString(q)<<" into "<<typeString(v)<<" at ";
+    Type q = E();
+    v.dereference();
+    if(v!=q) {
+        cout<<"Can't dereference "<<q<<" into "<<v<<" at ";
         throwError();
     }
 
-    g.addOp(new PopToPtr(size(q)));
-    asmOut+="poptoptr "+to_string(size(q))+"\n";
+    g.addOp(new PopToPtr(q.size()));
+    asmOut+="poptoptr "+to_string(q.size())+"\n";
 }
 
 void Parser::controlStatement(Symbol &s) {
@@ -550,12 +500,12 @@ void Parser::builtInFunction(Symbol &s) {
         next();
         match("(");
         next();
-        ParseVar v = E();
+        Type v = E();
         match(")");
         next();
 
-        g.addOp(new PrintNum(ptrType(v)));
-        asmOut+="printnum "+typeString(v)+"\n";
+        g.addOp(new PrintNum(v.toSerializedType()));
+        asmOut+="printnum "+v.toString()+"\n";
     }
 }
 
@@ -718,7 +668,6 @@ void Parser::func_def() {
      * 3 byte
      * BYTE | BYTE | BYTE | RETURN |
      * scopesize = 3
-    /*
      * We need to subtract scopeSize from addresses for proper values
      * local[0-lbl_size] = return
      * local[-lbl_size-var_size] = next
@@ -730,8 +679,7 @@ void Parser::func_def() {
 
     //for(i = 0; i<s->numRet; i++) {
     Symbol ret(SYM_VAR);
-    ret.varType = parseToVar(s->returnType);
-    ret.pointerLevel = s->returnType.pointerLevel;
+    ret.varType = s->returnType;
 
     sym.addSymbol("0", ret);
     //}
@@ -740,8 +688,7 @@ void Parser::func_def() {
 
     for(i = 0; i<s->numArg; i++) {
         Symbol arg(SYM_VAR);
-        arg.varType = s->args[i].v;
-        arg.pointerLevel = pointerLevels[i];
+        arg.varType = s->args[i];
 
         cout<<"Local "<<argNames[i]<<" p "<<pointerLevels[i]<<endl;
 
@@ -796,9 +743,9 @@ void Parser::parse() {
 //<var_decl> -> <type_name> <var_decl_elt>;
 //<var_decl_elt> -> ** <var_name> <var_decl_elt_tail>
 //<var_decl_elt_tail>, <var_decl_elt> | E
-void Parser::var_decl(VarType varType) {
-    *pout<<prefix<<"Variable type is "<<cur()->str()<<endl;
-    next();
+void Parser::var_decl() {
+    Type t = Type::parseNoPointer(t);
+    *pout<<prefix<<"Variable type is "<<t<<endl;
 
     list<string> varNames;
     list<int> pointerLevels;
@@ -841,7 +788,6 @@ void Parser::var_decl(VarType varType) {
     while(i!=varNames.end()) {
         Symbol s(SYM_VAR);
         s.varType = varType;
-        s.pointerLevel = *j;
 
         sym.addSymbol(*i, s);
 
@@ -850,37 +796,18 @@ void Parser::var_decl(VarType varType) {
     }
 }
 
-ParseVar Parser::parseFunctionType() {
-    VarType v;
-    if(testMatch("int")) v = VAR_INT;
-    else if(testMatch("double")) v = VAR_DOUBLE;
-    else if(testMatch("char")) v = VAR_CHAR;
-    else {
-        cout<<"Expected variable return type, got "<<cur()->str()<<" at ";
-        throwError();
-    }
-    next();
-    int pointerLevel = 0;
-    while(testMatch("*")) {
-        pointerLevel++;
-        next();
-    }
-
-    return returnVar(v, pointerLevel);
-}
-
 void Parser::func_decl() {
 	next();
     match(":");
     next();
     
-    ParseVar ret;
+    Type ret;
     bool isVoid = false;
     if(testMatch("void")) {
         isVoid = true;
         next();
     } else {
-        ret = parseFunctionType();
+        ret = Type::parse(t);
     }
 
     //func name
@@ -901,14 +828,14 @@ void Parser::func_decl() {
     match("(");
     next();
     //Match arguments
-    list<ParseVar> args;
+    list<Type> args;
     bool done = false;
     if(testMatch(")")) {
         done = true;
         next();
     }
     while(!done) {
-        args.push_back(parseFunctionType());
+        args.push_back(Type::parse(t));
         /*
         Variable v;
         if(testMatch("int")) {
@@ -948,7 +875,7 @@ void Parser::func_decl() {
     }*/
 
     s.numArg = args.size();
-    s.args = new ParseVar[args.size()];
+    s.args = new Type[args.size()];
     int j = 0;
     for(auto i: args) s.args[j++] = i;
 
@@ -960,14 +887,9 @@ void Parser::declarations(bool funcs) {
     //Different types of declarations
     bool declarationsDone = false;
     while(!declarationsDone) {
-        if(testMatch("int")) {
-            //Int declaration
-            var_decl(VAR_INT);
-        } else if(testMatch("double")) {
-            var_decl(VAR_DOUBLE);
-        } else if(testMatch("char")) {
-            var_decl(VAR_CHAR);
-        } else if(funcs&&testMatch("function")) {
+        if(Type::isType(t)) {
+            var_decl();
+        }else if(funcs&&testMatch("function")) {
             //Function declaration
             func_decl();
         } else {

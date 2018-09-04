@@ -1,9 +1,14 @@
-OBJ = g++ -c -g -std=c++11 -Wfatal-errors
+OBJ2 = g++ -c -g -std=c++11
+OBJ3 = g++ -c -g -std=c++11 -Wfatal-errors 
+OBJ = g++ -c -g -std=c++11 -fmax-errors=4
 
-compiler: Error.o Generator.o main.o Operators.o Parser.o SymTab.o Tokenizer.o
+compiler: Error.o Generator.o main.o Operators.o Parser.o SymTab.o Tokenizer.o Type.o
 		g++ -g -std=c++11 *.o -o compiler
 		
-SymTab.o: SymTab.h SymTab.cpp
+Type.o: Type.h Type.cpp Tokenizer.h Error.h
+	$(OBJ) Type.cpp
+
+SymTab.o: SymTab.h SymTab.cpp Type.h
 	$(OBJ) SymTab.cpp
 	
 Error.o: Error.cpp Error.h Tokenizer.h
@@ -26,3 +31,4 @@ Tokenizer.o: Tokenizer.h Tokenizer.cpp Error.h
 	
 clean: compiler
 	rm compiler
+	rm *.o
