@@ -744,30 +744,27 @@ void Parser::parse() {
 //<var_decl_elt> -> ** <var_name> <var_decl_elt_tail>
 //<var_decl_elt_tail>, <var_decl_elt> | E
 void Parser::var_decl() {
-    Type t = Type::parseNoPointer(t);
-    *pout<<prefix<<"Variable type is "<<t<<endl;
+    Type type = Type::parseNoPointer(t);
+    *pout<<prefix<<"Variable type is "<<type<<endl;
 
     list<string> varNames;
     list<int> pointerLevels;
     bool listDone = false;
     do {
-        //Match asterisks for pointer
-        int pointerLevel = 0;
-        while(testMatch("*")) {
-            next();
-            pointerLevel++;
-        }
+        type.parsePointerLevel(t);
 
         matchType(TK_IDEN, "Identifier");
         //Check that variable isn't in symbol table or the list
-        if(sym.keyExists(cur()->str())
-                ||find(varNames.begin(), varNames.end(), cur()->str())!=varNames.end()) {
+        if(sym.keyExists(cur()->str())) {
             cout<<"Duplicate symbol "<<cur()->str()<<" at ";
             throwError();
         }
 
         varNames.push_back(cur()->str());
-        pointerLevels.push_back(pointerLevel);
+        
+        Symbol s(SYM_VAR);
+        s.varType = type;
+        sym.addSymbol(cur()->str(), s);
 
         *pout<<prefix<<"Variable: "<<cur()->str()<<endl;
         next();
@@ -781,19 +778,6 @@ void Parser::var_decl() {
             throwError();
         }
     } while(!listDone);
-
-    //Now we actually add the variables
-    list<string>::iterator i = varNames.begin();
-    list<int>::iterator j = pointerLevels.begin();
-    while(i!=varNames.end()) {
-        Symbol s(SYM_VAR);
-        s.varType = varType;
-
-        sym.addSymbol(*i, s);
-
-        i++;
-        j++;
-    }
 }
 
 void Parser::func_decl() {

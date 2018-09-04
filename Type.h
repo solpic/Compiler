@@ -36,7 +36,7 @@ public:
     Type();
     Type(Primitive p, int ptrLvl, StructDef *strct);
     int size();
-    std::string toString();
+    std::string toString() const;
     static std::string toString(SerializedType s);
     static bool equals(Type a, Type b);
     SerializedType toSerializedType();

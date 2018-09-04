@@ -3,7 +3,6 @@
 using namespace std;
 
 Type::Type()  {
-    prim = 0;
     pointerLevel = 0;
     structSym = 0;
 }
@@ -32,7 +31,7 @@ SerializedType Type::toSerializedType() {
     else return (SerializedType)prim;
 }
 
-string Type::toString() {
+string Type::toString() const{
     string s;
     if(structSym) {
         //Do something here
@@ -70,9 +69,9 @@ ostream & operator << (ostream &out, const Type &t) {
 }
 
 bool Type::isType(Tokenizer *t) {
-    if(t->cur().equals("char")) return true;
-    else if(t->cur().equals("double")) return true;
-    else if(t->cur().equals("int")) return true;
+    if(t->cur()->equals("char")) return true;
+    else if(t->cur()->equals("double")) return true;
+    else if(t->cur()->equals("int")) return true;
     else{
         //We need to check for structs
         return false;
@@ -83,23 +82,23 @@ bool Type::isType(Tokenizer *t) {
 Type Type::parseNoPointer(Tokenizer *t) {
     Primitive p;
     StructDef *s = 0;
-    if(t->cur().equals("char")) p = PRIM_CHAR;
-    else if(t->cur().equals("int")) p = PRIM_INT;
-    else if(t->cur().equals("double")) p = PRIM_DBL;
+    if(t->cur()->equals("char")) p = PRIM_CHAR;
+    else if(t->cur()->equals("int")) p = PRIM_INT;
+    else if(t->cur()->equals("double")) p = PRIM_DBL;
     else{
         //We don't know what to do for structs
         error();
     }
-    next();
+    t->advance();
     
-    return t(p, 0, s);
+    return Type(p, 0, s);
 }
 
 void Type::parsePointerLevel(Tokenizer *t) {
     pointerLevel = 0;
-    while(t->cur().equals("*")) {
+    while(t->cur()->equals("*")) {
         pointerLevel++;
-        next();
+        t->advance();
     }
 }
 

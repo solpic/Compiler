@@ -2,13 +2,6 @@
 
 std::ostream* SymTab::sout = &std::cout;
 
-int varSizes[] = {INT_SIZE, DBL_SIZE, CHAR_SIZE};
-
-Type parseToVar(ParseVar p) {
-    if(p.pointerLevel>0) return VAR_PTR;
-    else return p.v;
-}
-
 using namespace std;
 
 const char *typeStrings[] = {"int", "string", "function", "built_in_function", "string literal", "control statement", "label", "procedure"};
@@ -20,13 +13,6 @@ SymbolType Symbol::stringToType(const std::string &s) {
     
     return Unknown;
 }
-
-const char *varTypeStrings[] = {"int", "double", "char", "pointer", "void"};
-
-const char *typeToString(Type v) {
-    return varTypeStrings[(int)v];
-}
-
 
 Symbol SymTab::get(const std::string &key) {
     return tbl.at(key);

@@ -23,7 +23,7 @@ main.o: main.cpp Tokenizer.h Parser.h SymTab.h Error.h
 Operators.o: Operators.cpp Operators.h SymTab.h Generator.h
 	$(OBJ) Operators.cpp
 	
-Parser.o: Parser.cpp Parser.h Error.h Tokenizer.h SymTab.h Generator.h Operators.h
+Parser.o: Parser.cpp Parser.h Error.h Tokenizer.h SymTab.h Generator.h Operators.h Type.h
 	$(OBJ) Parser.cpp
 	
 Tokenizer.o: Tokenizer.h Tokenizer.cpp Error.h
