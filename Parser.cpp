@@ -54,11 +54,9 @@ Type Parser::E() {
         }
 
         if(o==ADD) {
-            g.addOp(new Add(a.toSerializedType()));
-            asmOut += "add\n";
+            g.addOp(new Add(a.toSerializedType()), "add");
         } else if(o==SUBTRACT) {
-            g.addOp(new Sub(a.toSerializedType()));
-            asmOut += "sub\n";
+            g.addOp(new Sub(a.toSerializedType()), "sub");
         } else if(o==AND||o==OR) {
             //First check type
             if(a.isBType(BIN_CHAR)) {
@@ -69,11 +67,9 @@ Type Parser::E() {
                 throwError();
             }
             if(o==AND) {
-                g.addOp(new And(a.toSerializedType()));
-                asmOut += "and\n";
+                g.addOp(new And(a.toSerializedType()), "and");
             } else if(o==OR) {
-                g.addOp(new Or(a.toSerializedType()));
-                asmOut += "or\n";
+                g.addOp(new Or(a.toSerializedType()), "or");
             }
             a = Type::tChar();
         }
@@ -132,35 +128,27 @@ Type Parser::T() {
         }
 
         if(o==MULT) {
-            g.addOp(new Mult(a.toSerializedType()));
-            asmOut += "mult\n";
+            g.addOp(new Mult(a.toSerializedType()), "mult");
         } else if(o==DIV) {
-            g.addOp(new Div(a.toSerializedType()));
-            asmOut+="div\n";
+            g.addOp(new Div(a.toSerializedType()), "div");
         } else if(o==EQ) {
-            g.addOp(new CmpEq(a.toSerializedType()));
+            g.addOp(new CmpEq(a.toSerializedType()), "eq");
             isBool = true;
-            asmOut+="eq\n";
         } else if(o==NEQ) {
-            g.addOp(new CmpNeq(a.toSerializedType()));
+            g.addOp(new CmpNeq(a.toSerializedType()), "neq");
             isBool = true;
-            asmOut+= "neq\n";
         } else if(o==GRTR) {
-            g.addOp(new CmpGrtr(a.toSerializedType()));
+            g.addOp(new CmpGrtr(a.toSerializedType()), "grtr");
             isBool = true;
-            asmOut += "grtr\n";
         } else if(o==GRTR_EQ) {
-            g.addOp(new CmpGrtrEq(a.toSerializedType()));
+            g.addOp(new CmpGrtrEq(a.toSerializedType()), "grtr_eq");
             isBool = true;
-            asmOut += "grtr_eq\n";
         } else if(o==LESS) {
-            g.addOp(new CmpLess(a.toSerializedType()));
+            g.addOp(new CmpLess(a.toSerializedType()), "less");
             isBool = true;
-            asmOut += "less\n";
         } else if(o==LESS_EQ) {
-            g.addOp(new CmpLessEq(a.toSerializedType()));
+            g.addOp(new CmpLessEq(a.toSerializedType()), "less_eq");
             isBool = true;
-            asmOut += "less_eq\n";
         }
         if(isBool) {
             a = Type::tChar();
@@ -182,8 +170,7 @@ Type Parser::typecast() {
     SerializedType frm_actual = from.toSerializedType();
 
     if(to_actual!=frm_actual) {
-        g.addOp(new Typecast(to_actual, frm_actual));
-        asmOut += "typecast "+to.toString()+" to "+from.toString();+"\n";
+        g.addOp(new Typecast(to_actual, frm_actual), "typecast "+to.toString()+" to "+from.toString());
     }else{
         cout<<"Empty typecast from "<<from<<" to "<<to<<endl;
         throwError();
@@ -192,25 +179,19 @@ Type Parser::typecast() {
     return to;
 }
 
-void Parser::function(Symbol &s) {
+void Parser::function(Function *f) {
     string fname = cur()->str();
-    //Push return vals onto stack
-    //Push arguments onto stack
-    //Push variables onto stack
-    //Push function label onto stack
-    //Call
     next();
 
-    if(s.retsScopeSize>0) {
-        char returns[s.retsScopeSize];
-        g.addOp(new PushI(s.retsScopeSize, returns));
-        asmOut += "pushempty "+to_string(s.retsScopeSize)+"\n";
-    }
+
     match("(");
     next();
-    for(int i = 0; i<s.numArg; i++) {
+    
+    int numArg = f->getArgs()->size();
+    
+    for(int i = 0; i<numArg; i++) {
         E();
-        if(i<s.numArg-1) {
+        if(i<numArg-1) {
             match(",");
             next();
         }
@@ -218,18 +199,9 @@ void Parser::function(Symbol &s) {
     match(")");
     next();
 
-    cout<<"Locals: "<<s.localsScopeSize<<endl;
-    if(s.localsScopeSize>0) {
-        char buffer[s.localsScopeSize];
-        g.addOp(new PushI(s.localsScopeSize, buffer));
-        asmOut += "pushempty "+to_string(s.localsScopeSize)+"\n";
-    }
+    g.addOp(new PushLbl(f->getLabel()), "push "+fname);
 
-    g.addOp(new PushLbl(s.funcLabel));
-    asmOut += "push "+fname+"\n";
-
-    g.addOp(new Call());
-    asmOut += "call\n";
+    g.addOp(new Call(), "call");
 }
 
 Type Parser::F() {
@@ -247,8 +219,7 @@ Type Parser::F() {
             throwError();
         }
 
-        g.addOp(new Not());
-        asmOut+="not\n";
+        g.addOp(new Not(), "not");
         return Type::tChar();
     } else if(testMatch("-")) {
         *pout<<prefix<<"-"<<endl;
@@ -263,22 +234,19 @@ Type Parser::F() {
             throwError();
         }
 
-        g.addOp(new Negative(o.toSerializedType()));
-        asmOut+="negative\n";
+        g.addOp(new Negative(o.toSerializedType()), "negative");
         return o;
     } else if(testMatch("true")||testMatch("false")) {
         *pout<<prefix<<"TRUE/FALSE literal"<<endl;
         t_char c = testMatch("true")?1:0;
-        g.addOp(new PushI(sizeof(c), &c));
-        asmOut += "pushi "+to_string(c)+"\n";
+        g.addOp(new PushI(sizeof(c), &c), "pushi "+to_string(c));
         next();
         return Type::tChar();
     } else if(testMatchType(TK_INT)) {
         *pout<<prefix<<"Matched number literal "<<cur()->str()<<endl;
         t_int i = stoi(cur()->str());
 
-        g.addOp(new PushI(sizeof(i), &i));
-        asmOut += "pushi "+cur()->str()+", size: "+to_string(sizeof(i))+"\n";
+        g.addOp(new PushI(sizeof(i), &i), "pushi "+cur()->str()+", size: "+to_string(sizeof(i)));
 
         next();
 
@@ -287,8 +255,7 @@ Type Parser::F() {
         *pout<<prefix<<"Matched number literal "<<cur()->str()<<endl;
         t_dbl d = stod(cur()->str());
 
-        g.addOp(new PushI(sizeof(d), &d));
-        asmOut += "pushi "+cur()->str()+", size: "+to_string(sizeof(d))+"\n";
+        g.addOp(new PushI(sizeof(d), &d), "pushi "+cur()->str()+", size: "+to_string(sizeof(d)));
 
         next();
 
@@ -297,8 +264,7 @@ Type Parser::F() {
         *pout<<prefix<<"Matched character literal "<<cur()->str()<<endl;
         t_char c = cur()->str()[0];
 
-        g.addOp(new PushI(sizeof(c), &c));
-        asmOut += "pushi "+cur()->str()+", size: "+to_string(sizeof(c))+"\n";
+        g.addOp(new PushI(sizeof(c), &c), "pushi "+cur()->str()+", size: "+to_string(sizeof(c)));
 
         next();
 
@@ -314,12 +280,13 @@ Type Parser::F() {
         //Get address of var
         match("&");
         next();
-        Symbol s = sym.get(cur()->str());
-        if(s.type==SYM_VAR) {
-            g.addOp(new PushI(PTR_SIZE, &s.addr));
-            asmOut += "pushI &"+cur()->str()+": "+to_string(s.addr)+"\n";
+        Symbol *s = sym.get(cur()->str());
+        if(s->getType()==SYM_VAR) {
+            Variable *v = (Variable*)s;
+            int p = v->getPtrAddr();
+            g.addOp(new PushI(PTR_SIZE, &p), "pushI &"+cur()->str()+": "+to_string(v->getPtrAddr()));
             next();
-            return s.varType;
+            return v->getVarType();
         } else {
             cout<<"Expected variable, got "<<cur()->str()<<" at ";
             throwError();
@@ -334,8 +301,7 @@ Type Parser::F() {
             error();
         }
 
-        g.addOp(new PushPtr(p.size()));
-        asmOut += "pushptr "+p.toString()+": "+to_string(p.size())+"\n";
+        g.addOp(new PushPtr(p.size()), "pushptr "+p.toString()+": "+to_string(p.size()));
 
         p.dereference();
         return p;
@@ -346,17 +312,19 @@ Type Parser::F() {
         }
         //Is it variable or function
 
-        Symbol s = sym.get(cur()->str());
-        if(s.type==SYM_VAR) {
-            g.addOp(new Push(s.addr, s.size()));
-            asmOut += "push "+cur()->str()+":"+to_string(s.addr)+", size:"+to_string(s.size())+"\n";
+        Symbol *s = sym.get(cur()->str());
+        if(s->getType()==SYM_VAR) {
+            Variable *v = (Variable*)s;
+            g.addOp(new Push(v->getAddr(), v->getSize()), 
+                    "push "+cur()->str()+":"+to_string(v->getAddr())+", size:"+to_string(v->getSize()));
             next();
 
 
-            return s.varType;
-        } else if(s.type==SYM_FUNC) {
-			function(s);
-            return s.returnType;
+            return v->getVarType();
+        } else if(s->getType()==SYM_FUNC) {
+            Function* f = (Function*)s;
+			function(f);
+            return f->getRet();
         } else {
             cout<<"Expected variable or function, got "<<cur()->str()<<" at ";
             throwError();
@@ -368,10 +336,9 @@ Type Parser::F() {
 }
 
 void Parser::compile(const char* fname) {
-    *pout<<prefix<<"Data size: "<<sym.getSize()<<endl;
     sym.dump(*pout);
-    g.resolveLabels(sym.getSize());
-    g.generate(fname, sym.getSize(), sym);
+    g.resolveLabels();
+    g.generate(fname, sym);
 }
 
 Token* Parser::cur() {
@@ -416,17 +383,16 @@ void Parser::assignment() {
     next();
 
     Type v = E();
-    Symbol s = sym.get(varName);
+    Symbol *s = sym.get(varName);
+    Variable *var = (Variable*)s;
+    Type q = var->getVarType();
 
-    Type q = s.varType;
-
-    if(Type::equals(v, q)) {
+    if(!Type::equals(v, q)) {
         cout<<"Can't assign "<<v<<" to "<<q<<" at ";
         throwError();
     }
 
-    g.addOp(new Pop(s.getAddr(), s.size()));
-    asmOut+="pop "+varName+":"+to_string(s.getAddr())+"\n";
+    g.addOp(new Pop(var->getAddr(), var->getSize()), "pop "+varName+":"+to_string(var->getAddr()));
 }
 
 void Parser::pointerAssignment() {
@@ -440,8 +406,7 @@ void Parser::pointerAssignment() {
         throwError();
     }
 
-    g.addOp(new PopToPtr(q.size()));
-    asmOut+="poptoptr "+to_string(q.size())+"\n";
+    g.addOp(new PopToPtr(q.size()), "poptoptr "+to_string(q.size()));
 }
 
 void Parser::controlStatement(Symbol &s) {
@@ -495,8 +460,9 @@ void Parser::controlStatement(Symbol &s) {
     */
 }
 
-void Parser::builtInFunction(Symbol &s) {
-    if(s.builtInFunc==F_PRINTNUM) {
+void Parser::builtInFunction(Symbol *s) {
+    BuiltInFunc *f = (BuiltInFunc*)s;
+    if(f->func==F_PRINTNUM) {
         next();
         match("(");
         next();
@@ -504,16 +470,15 @@ void Parser::builtInFunction(Symbol &s) {
         match(")");
         next();
 
-        g.addOp(new PrintNum(v.toSerializedType()));
-        asmOut+="printnum "+v.toString()+"\n";
+        g.addOp(new PrintNum(v.toSerializedType()), "printnum "+v.toString());
     }
 }
 
 void Parser::statements() {
     *pout<<prefix<<"Current statement: "<<cur()->str()<<endl;
     if(sym.keyExists(cur()->str())) {
-        Symbol s = sym.get(cur()->str());
-        SymbolType type = s.getType();
+        Symbol *s = sym.get(cur()->str());
+        SymbolType type = s->getType();
         if(type==SYM_VAR) {
             //Must be assignment
             assignment();
@@ -523,10 +488,10 @@ void Parser::statements() {
             builtInFunction(s);
             match(";");
             next();
-        } else if(type==SYM_CONTROL) {
-            controlStatement(s);
+        //} else if(type==SYM_CONTROL) {
+          //  controlStatement(s);
         } else if(type==SYM_FUNC) {
-            function(s);
+            function((Function*)s);
             match(";");
             next();
         }
@@ -542,26 +507,19 @@ void Parser::statements() {
             cout<<"Can't return without enclosing function at ";
             throwError();
         }
-        //Evaluate return arguments and push them into old stack
-        //for(int i = 0; i<currentFunc->numRet; i++) {
-        if(!currentFunc->isVoid) {
-            int i = 0;
-            E();
-            Symbol ret = sym.get(to_string(i));
-
-            g.addOp(new Pop(ret.addr, ret.size()));
-            asmOut += "pop return value "+to_string(i)+"\n";
-        }
+        if(!currentFunc->retVoid()) E(); //return value
         match(";");
         next();
-        //Return statement
-        //We need to pop all the stuff off the stack
-        int scope = currentFunc->localsScopeSize + currentFunc->argsScopeSize;
-        g.addOp(new PushI(LBL_SIZE, &scope));
-        asmOut += "pushi:fnc_scope "+to_string(scope)+", size: "+to_string(LBL_SIZE)+"\n";
-
-        g.addOp(new Return());
-        asmOut += "return\n";
+        
+        //Frame stack is handled by return
+        //Expression stack doesnt need anything
+        //Var stack is the issue
+        
+        //Return needs to pop all the scopes
+        //So we get total local scope size
+        int scopeSize = sym.popLocals();
+        g.addOp(new PushI(LBL_SIZE, &scopeSize), "pushi:localscopesize "+to_string(scopeSize));
+        g.addOp(new Return(), "return");
     }else {
         cout<<"Expected statement, got "<<cur()->str()<<" at ";
         cur()->tellPositionInformation(cout, t);
@@ -574,39 +532,17 @@ Parser::Parser(Tokenizer *tok) {
     t = tok;
     currentFunc = 0;
 
-    Symbol s(SYM_BUILTINFUNC);
 
-    s.builtInFunc = F_PRINTNUM;
-    sym.addSymbol("printvar", s);
-
-    Symbol s2(SYM_BUILTINFUNC);
-    s2.builtInFunc = F_PRINT;
-    sym.addSymbol("print", s2);
-
-    Symbol sIf(SYM_CONTROL);
-    sIf.cType = CIf;
-    sym.addSymbol("if", sIf);
-
-    Symbol sWhile(SYM_CONTROL);
-    sWhile.cType = CWhile;
-    sym.addSymbol("while", sWhile);
-
-    Symbol sReadInt(SYM_BUILTINFUNC);
-    sReadInt.builtInFunc = F_READINT;
-    sym.addSymbol("readint", sReadInt);
+    sym.addBuiltInFunc("printvar", F_PRINTNUM);
 }
 
 void Parser::func_def() {
-    next();
-
-    match(":");
-    next();
-    //We should check that return values and args match up
-    //But we won't
-    while(testMatch("void")||testMatch("int")||testMatch("double")||testMatch("char")) {
-        next();
-        if(testMatch(",")) next();
-    }
+    
+    Type ret;
+    bool isVoid = false;
+    
+    if(!testMatch("void")) ret = Type::parse(t);
+    else { isVoid = true; next(); }
 
     //func name
     if(!testMatchType(TK_IDEN)) {
@@ -620,124 +556,117 @@ void Parser::func_def() {
         throwError();
     }
 
-    Symbol *s = sym.getPtr(cur()->str());
-    next();
-    currentFunc = s;
-    match("(");
-    next();
-
-    vector<string> argNames;
-    vector<int> pointerLevels;
-    pointerLevels.resize(s->numArg);
-    argNames.resize(s->numArg);
-    int i = 0;
-    //We should check that args match but we won't
-    while(testMatch("int")||testMatch("double")||testMatch("char")) {
-        next();
-        pointerLevels[i] = 0;
-        while(testMatch("*")) {
-            pointerLevels[i]++;
-            next();
-        }
-        if(!testMatchType(TK_IDEN)) {
-            cout<<"Expected identifier, got "<<cur()->str()<<" at ";
-            throwError();
-        }
-        if(sym.keyExists(cur()->str())) {
-            cout<<"Duplicate symbol "<<cur()->str()<<" at ";
-            throwError();
-        }
-        argNames[i++] = cur()->str();
-        next();
-        if(testMatch(",")) next();
+    Function *f = (Function*)sym.get(cur()->str()); next();
+    
+    //Check that return value matches
+    if(isVoid&&!f->retVoid()) {
+        cout<<"Function "<<cur()->str()<<" is not defined as void at ";
+        throwError();
+    }else if(!isVoid&&ret!=f->getRet()) {
+        cout<<"Return value "<<ret<<" does not match "<<f->getRet()<<" at ";
+        throwError();
     }
-    match(")");
-    next();
+    
+    sym.newScope();
+    match("("); next();
+    
+    bool done = false;
+    if(testMatch(")")) { done = true; next(); }
+    
+    //We don't check that args match
+    int argsSize = 0;
+    list<string> varNames;
+    while(!done) {
+        Type type = Type::parse(t);
+        sym.addVar(cur()->str(), type);
+        argsSize += type.size();
+        
+        varNames.push_back(cur()->str()); next();
+        
+        
+        if(testMatch(")")) { done = true; next(); }
+        else if(testMatch(",")) next();
+        else{
+            cout<<"Expected ) or , got "<<cur()->str()<<" at ";
+            throwError();
+        }
+    }
+    
     match("{");
     next();
 
     //Add label
-    g.addOp(new Label(s->funcLabel));
-    asmOut += "L"+to_string(s->funcLabel)+":\n";
-
-    //Args, vars, return location
-    //First arg has addr 0
-    //Return location has addr scopeSize
-    //Return location is top of stack
-    /*
-     * 3 byte
-     * BYTE | BYTE | BYTE | RETURN |
-     * scopesize = 3
-     * We need to subtract scopeSize from addresses for proper values
-     * local[0-lbl_size] = return
-     * local[-lbl_size-var_size] = next
-     */
-    //Subtract labelsize +scopesize from each addr
-    //Variable declarations
-    sym.funcScope = true;
-    sym.scopeSize = 0;
-
-    //for(i = 0; i<s->numRet; i++) {
-    Symbol ret(SYM_VAR);
-    ret.varType = s->returnType;
-
-    sym.addSymbol("0", ret);
-    //}
-
-    int retScopeSize = sym.scopeSize;
-
-    for(i = 0; i<s->numArg; i++) {
-        Symbol arg(SYM_VAR);
-        arg.varType = s->args[i];
-
-        cout<<"Local "<<argNames[i]<<" p "<<pointerLevels[i]<<endl;
-
-        sym.addSymbol(argNames[i], arg);
+    g.addOp(new Label(f->getLabel()), "L"+to_string(f->getLabel())+":");
+    
+    //First allocate space on var stack for args then pop into them
+    g.addOp(new PushLocal(argsSize), "pushlocal "+to_string(argsSize));
+    
+    list<Type> *args = f->getArgs();
+    auto a = args->rbegin();
+    auto n = varNames.rbegin();
+    while(a!=args->rend()) {
+        Variable *v = (Variable*)sym.get(*n);
+        
+        g.addOp(new Pop(v->getAddr(), v->getSize()), "pop to arg "+*n+": "+to_string(v->getAddr()));
+        
+        a++;
+        n++;
     }
-
-    int argScopeSize = sym.scopeSize - retScopeSize;
-    declarations(false);
-    //We use these later
-    s->localsScopeSize = sym.scopeSize - argScopeSize - retScopeSize;
-    s->argsScopeSize = argScopeSize;
-    s->retsScopeSize = retScopeSize;
-
-    //Fix addresses
-    sym.fixLocalAddresses();
+    
+    currentFunc = f;
+    
     while(!testMatch("}")) statements();
     match("}");
     next();
     match(";");
     next();
-
-    //Delete locals
-    sym.deleteLocals();
-    sym.funcScope = false;
-
-    currentFunc = 0;
 }
 
 void Parser::parse() {
+    sym.addVar("TMPVAR", Type::tChar());
+    g.addOp(new PushLocal(Type::tChar().size()), "allocate empty global var");
+    
+    
+    
+    //Globals
+    if(testMatch("globals")) {
+        next();
+        
+        while(!testMatch("end")) var_decl();
+        next();
+    }
 
-    labelMain = g.curLabel++;
-    g.addOp(new PushLbl(labelMain));
-    asmOut+="pushlbl L"+to_string(labelMain)+"\n";
-    g.addOp(new Jump());
-    asmOut+="jmp\n";
+    labelMain = g.nextLabel();
+    g.addOp(new PushLbl(labelMain), "pushlbl L"+to_string(labelMain));
+    
+    g.addOp(new Jump(), "jmp");
 
-    declarations(true);
-    while(testMatch("function")) func_decl();
-    while(testMatch("define")) func_def();
-    cout<<"Done with func defs"<<endl;
+    //Function prototypes
+    if(testMatch("prototypes")) {
+        next();
+        
+        while(!testMatch("end")) {
+            func_decl();
+        }
+        next();
+    }
+    
+    //Function definitions
+    if(testMatch("functions")) {
+        next();
+        
+        while(!testMatch("end")) func_def();
+        next();
+    }
 
-    g.addOp(new Label(labelMain));
-    asmOut += "L"+to_string(labelMain)+":\n";
-    while(!testMatch("EOF")) statements();
+    g.addOp(new Label(labelMain), "L"+to_string(labelMain)+":");
+    match("begin"); next();
+    while(!testMatch("end")) statements();
+    match("end"); next();
     match("EOF");
     next();
 
-    g.addOp(new Halt());
-    asmOut += "halt\n";
+    g.addOp(new Halt(), "halt");
 }
 
 //<var_decl> -> <type_name> <var_decl_elt>;
@@ -747,8 +676,6 @@ void Parser::var_decl() {
     Type type = Type::parseNoPointer(t);
     *pout<<prefix<<"Variable type is "<<type<<endl;
 
-    list<string> varNames;
-    list<int> pointerLevels;
     bool listDone = false;
     do {
         type.parsePointerLevel(t);
@@ -759,15 +686,10 @@ void Parser::var_decl() {
             cout<<"Duplicate symbol "<<cur()->str()<<" at ";
             throwError();
         }
-
-        varNames.push_back(cur()->str());
-        
-        Symbol s(SYM_VAR);
-        s.varType = type;
-        sym.addSymbol(cur()->str(), s);
-
-        *pout<<prefix<<"Variable: "<<cur()->str()<<endl;
+        sym.addVar(cur()->str(), type);
+        g.addOp(new PushLocal(type.size()), "allocate space for "+cur()->str());
         next();
+        
         if(testMatch(";")) {
             listDone = true;
             next();
@@ -781,17 +703,14 @@ void Parser::var_decl() {
 }
 
 void Parser::func_decl() {
-	next();
-    match(":");
-    next();
+    Function *f = new Function();
     
     Type ret;
-    bool isVoid = false;
     if(testMatch("void")) {
-        isVoid = true;
+        f->setVoid();
         next();
     } else {
-        ret = Type::parse(t);
+        f->setRet(Type::parse(t));
     }
 
     //func name
@@ -811,29 +730,16 @@ void Parser::func_decl() {
 
     match("(");
     next();
-    //Match arguments
-    list<Type> args;
+    
+    
     bool done = false;
     if(testMatch(")")) {
         done = true;
         next();
     }
     while(!done) {
-        args.push_back(Type::parse(t));
-        /*
-        Variable v;
-        if(testMatch("int")) {
-        	v.type = VAR_INT;
-        	args.push_back(v);
-        }else if(testMatch("double")) {
-        	v.type = VAR_DOUBLE;
-        	args.push_back(v);
-        }else if(testMatch("char")) {
-        	v.type = VAR_CHAR;
-        	args.push_back(v);
-        }*/
-        //next();
-        //This allows for trailing comma
+        f->addArg(Type::parse(t));
+        
         if(testMatch(",")) next();
         else if(testMatch(")")) {
             next();
@@ -846,25 +752,9 @@ void Parser::func_decl() {
     match(";");
     next();
 
-    Symbol s(SYM_FUNC);
-    s.isVoid = isVoid;
-    s.returnType = ret;
+    f->setLabel(g.nextLabel());
 
-    /*s.numRet = retVals.size();
-
-    s.rets = new Variable[retVals.size()];
-    int j = 0;
-    for(auto i: retVals) {
-    s.rets[j++] = i;
-    }*/
-
-    s.numArg = args.size();
-    s.args = new Type[args.size()];
-    int j = 0;
-    for(auto i: args) s.args[j++] = i;
-
-    s.funcLabel = g.curLabel++;
-    sym.addSymbol(funcName, s);
+    sym.addFunc(funcName, f);
 }
 
 void Parser::declarations(bool funcs) {

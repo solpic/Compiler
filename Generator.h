@@ -39,6 +39,11 @@
 #define OP_CAST 28
 #define OP_NEG 29
 #define OP_NOT 30
+#define OP_PUSHLOCAL 31
+#define OP_POPLOCAL 32
+
+
+using namespace std;
 
 class SymTab;
 
@@ -46,7 +51,11 @@ class SymTab;
 class Emulator;
 
 class Op{
-public:
+public:    
+    string asmLine;
+    
+    static unordered_map<int, string> asmLines;
+
     int code;
     Op(){ code = -1;}
     virtual ~Op(){}
@@ -62,6 +71,34 @@ public:
     }
     
     static Op* opFromCode(int code);
+};
+
+class PushLocal: public Op{
+public:
+    int size;
+    PushLocal() { code = OP_PUSHLOCAL; }
+    PushLocal(int s) {
+        code = OP_PUSHLOCAL;
+        size = s;
+    }
+    int dataSize() { return sizeof(size); }
+    void putData(char *data) {
+        memcpy(data, &size, sizeof(size));
+    }
+    void parseData(char *data) {
+        memcpy(&size, data, sizeof(size));
+    }
+    void run(Emulator &e);
+};
+
+class PopLocal: public PushLocal{
+public:
+    PopLocal() { code = OP_POPLOCAL; }
+    PopLocal(int s) { 
+        code = OP_POPLOCAL;
+        size = s;
+    }
+    void run(Emulator &e);
 };
 
 class Label: public Op{
@@ -255,13 +292,20 @@ public:
 class Generator{
 private:
     std::list<Op*> ops;
-public:
     int curLabel;
+public:
+    int nextLabel() {
+        int tmp = curLabel;
+        curLabel++;
+        return tmp;
+    }
     Generator() { curLabel = 0;}
     ~Generator() {}
-    void resolveLabels(int dataSize);
-    void addOp(Op *o) { ops.push_back(o); }
-    void generate(const char *fname, int dataSize, SymTab &sym);
+    void resolveLabels();
+    void addOp(Op *o, string a) { o->asmLine = a; ops.push_back(o); }
+    void generate(const char *fname, SymTab &sym);
+    
+    
 };
 
 class Emulator{
@@ -270,18 +314,30 @@ public:
     static std::string prefix;
     int ip, data;
     int sp;
-    std::vector<char> stk;
-    std::list<int> stkSizes;    //Sizes of stack elements, for debugging purposes
-    void push(int size, void *val);
-    void pop(int size, void *val);
+    std::vector<char> exprStk;
+    std::vector<char> varStk;
+    std::vector<char> frameStk;
+    
+    void push(std::vector<char>* stk, int size, void *val);
+    void pop(std::vector<char>* stk, int size, void *val);
+    
+    
+    void push(int size, void *val) {
+        push(&exprStk, size, val);
+    }
+    void pop(int size, void *val) {
+        pop(&exprStk, size, val);
+    }
     
     static std::ostream *eout;
-    void printStack();
     static void setOutput(std::ostream *o) { eout = o; }
     Emulator(const char *fname);
     ~Emulator();
     void run();
     void runOp(Op &o);
+    
+    void printStack();
+    void printStack(string name, vector<char> *stk);
 };
 
 #endif

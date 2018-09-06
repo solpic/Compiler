@@ -4,8 +4,10 @@
 
 using namespace std;
 
+unordered_map<int, string> Op::asmLines;
+
 ostream* Emulator::eout = &cout;
-string Emulator::prefix = "Emulator: ";
+string Emulator::prefix = "";
 Op* Op::opFromCode(int code) {
     switch(code) {
     case op_pushlbl:
@@ -115,6 +117,14 @@ Op* Op::opFromCode(int code) {
     case OP_CAST:
         return new Typecast();
         break;
+        
+    case OP_PUSHLOCAL:
+        return new PushLocal();
+        break;
+    
+    case OP_POPLOCAL:
+        return new PopLocal();
+        break;
 
     default:
         cout<<"Unrecognized op code "<<code<<endl;
@@ -133,12 +143,16 @@ void Return::run(Emulator &e) {
     LBL scopeSize;
     LBL sp_tmp;
     LBL ret_ip;
+    
+    e.pop(&e.frameStk, LBL_SIZE, &ret_ip);
+    e.pop(&e.frameStk, LBL_SIZE, &sp_tmp);
+    
+    //Pop local scopes off variable stack
     e.pop(LBL_SIZE, &scopeSize);
-    e.pop(LBL_SIZE, &ret_ip);
-    e.pop(LBL_SIZE, &sp_tmp);
+    char *tmp = new char[scopeSize];
+    e.pop(&e.varStk, scopeSize, tmp);
+    delete[] tmp;
 
-
-    e.stk.resize(e.stk.size()-scopeSize);
     e.sp = sp_tmp;
     e.ip = ret_ip;
 
@@ -154,39 +168,46 @@ void Call::run(Emulator &e) {
     LBL sp_tmp = e.sp;
     LBL fnc_ip;
     LBL ret_ip = e.ip + opSize();
-    e.pop(LBL_SIZE, &fnc_ip);
+    
+    e.pop(&e.exprStk, LBL_SIZE, &fnc_ip);
 
-    e.push(LBL_SIZE, &sp_tmp);
-    e.push(LBL_SIZE, &ret_ip);
+    e.push(&e.frameStk, LBL_SIZE, &sp_tmp);
+    e.push(&e.frameStk, LBL_SIZE, &ret_ip);
 
-    /*
-    e.pop(LBL_SIZE, &scopeSize);
-    e.pop(LBL_SIZE, &ret_ip);
-    e.pop(LBL_SIZE, &sp_tmp);
-    */
-
-    e.sp = e.stk.size();
+    e.sp = e.varStk.size();
     e.ip = fnc_ip;
 }
 
 void Jump::run(Emulator &e) {
     int n_ip;
-    e.pop(LBL_SIZE, &n_ip);
+    e.pop(&e.exprStk, LBL_SIZE, &n_ip);
 
     e.ip = n_ip;
 }
 
 void PushLbl::run(Emulator &e) {
-    e.push(LBL_SIZE, &lbl);
+    e.push(&e.exprStk, LBL_SIZE, &lbl);
 
+    e.ip += opSize();
+}
+
+void PushLocal::run(Emulator &e) {
+    e.varStk.resize(e.varStk.size()+size);
+    
+    e.ip += opSize();
+}
+
+void PopLocal::run(Emulator &e) {
+    e.varStk.resize(e.varStk.size()-size);
+    
     e.ip += opSize();
 }
 
 void Pop::run(Emulator &e) {
     if(addr>=0) {
-        e.pop(size, e.code+addr);
+        e.pop(&e.exprStk, size, &e.varStk[e.sp+addr]);
     } else {
-        e.pop(size, &e.stk[e.sp+addr]);
+        e.pop(&e.exprStk, size, &e.varStk[-addr]);
     }
 
     e.ip += opSize();
@@ -248,9 +269,9 @@ void PopToPtr::run(Emulator &e) {
     e.pop(PTR_SIZE, &c);
 
     if(c>=0) {
-        memcpy(e.code+c, tmp, size);
+        memcpy(&e.varStk[c], tmp, size);
     } else {
-        memcpy(&e.stk[e.sp+c], tmp, size);
+        memcpy((void*)(-c), tmp, size);
     }
 
     e.ip += opSize();
@@ -261,26 +282,20 @@ void PushPtr::run(Emulator &e) {
     e.pop(PTR_SIZE, &c);
 
     if(c>=0) {
-        e.push(size, e.code+c);
+        e.push(size, &e.varStk[c]);
     } else {
-        e.push(size, &e.stk[e.sp+c]);
+        e.push(size, (void*)(-c));
     }
 
     e.ip += opSize();
 }
 
 void Push::run(Emulator &e) {
-    *e.eout<<"Pushing from addr: "<<addr<<" of size "<<size<<", SP is "<<e.sp<<endl<<endl;
     if(addr>=0) {
-        e.push(size, e.code+addr);
+        e.push(&e.exprStk, size, &e.varStk[e.sp+addr]);
     } else {
-        e.push(size, &e.stk[e.sp+addr]);
-        int i = e.sp+addr;
-        *e.eout<<"Starting at position "<<i<<": ";
-        for(int j = 0; j<size; j++) {
-            *e.eout<<(int)e.stk[i+j]<<" ";
-        }
-        *e.eout<<endl<<endl;
+        e.push(&e.exprStk, size, &e.varStk[-addr]);
+        
     }
 
     e.ip += opSize();
@@ -318,30 +333,29 @@ void PushI::run(Emulator &e) {
     e.ip += opSize();
 }
 
-void Emulator::push(int size, void *val) {
+void Emulator::push(vector<char> *stk, int size, void *val) {
     //We have to copy val before we resize the stack, because val might be in the stack
     char *valCpy = new char[size];
     memcpy(valCpy, val, size);
 
-    int i = stk.size();
-    stk.resize(stk.size()+size);
-    memcpy(&stk[i], valCpy, size);
+    int i = stk->size();
+    stk->resize(stk->size()+size);
+    memcpy(&(*stk)[i], valCpy, size);
 
     delete[] valCpy;
 }
 
-void Emulator::pop(int size, void *val) {
-    int i = stk.size();
-    memcpy(val, &stk[i-size], size);
-    stk.resize(i-size);
+void Emulator::pop(vector<char> *stk, int size, void *val) {
+    int i = stk->size();
+    memcpy(val, &(*stk)[i-size], size);
+    stk->resize(i-size);
 }
 
-void Generator::resolveLabels(int dataSize) {
+void Generator::resolveLabels() {
     int *labels = new int[curLabel];
     for(int i = 0; i<curLabel; i++) labels[i] = -1;
 
     int pos = 0;
-    pos += sizeof(DataHeader) + dataSize;
 
     //Calculate positions
     for(auto i = ops.begin(); i!=ops.end(); i++) {
@@ -366,23 +380,22 @@ void Generator::resolveLabels(int dataSize) {
     }
 }
 
-void Generator::generate(const char *fname, int dataSize, SymTab &sym) {
+void Generator::generate(const char *fname, SymTab &sym) {
+    string asmOut = "";
+    
     ofstream of;
     of.open(fname, ofstream::out | ofstream::trunc | ofstream::binary);
-
-    DataHeader d;
-    d.size = dataSize;
-    char *c = new char[dataSize+sizeof(d)];
-    memcpy(c, &d, sizeof(d));
-    sym.fillStringLiterals(c);
-    of.write(c, dataSize+sizeof(d));
 
     //Now code segment
     char buffer[100];
     for(auto i = ops.begin(); i!=ops.end(); i++) {
+        asmOut += (*i)->asmLine + "\n";
         //Ignore labels
         Op *o = *i;
         if(o->code!=op_label) {
+            //For debugging
+            Op::asmLines.insert({of.tellp(), o->asmLine});
+                
             of.write((char*)&o->code, sizeof(o->code));
             o->putData(buffer);
             of.write(buffer, o->dataSize());
@@ -391,51 +404,29 @@ void Generator::generate(const char *fname, int dataSize, SymTab &sym) {
     }
 
     of.close();
+    
+    *(Emulator::eout)<<"ASM: "<<endl<<asmOut<<endl;
 }
 
 void Emulator::printStack() {
-    *eout<<prefix<<"Stack Unformatted: ";
-    for(char c: stk) *eout<<(int)c<<" ";
-    *eout<<endl;
+    printStack("Vars: ", &varStk);
+    printStack("Frame: ", &frameStk);
+    printStack("Expr: ", &exprStk);
+}
 
-    int pos = 0;
-    for(auto it = stkSizes.begin(); it!=stkSizes.end(); it++) {
-        pos += *it;
-    }
-    if(pos!=stk.size()) {
-        *eout<<"Stack formatting alignment error"<<endl;
-        return;
-    }
-    *eout<<"Stack Formatted: \n";
-    pos = 0;
-    for(auto it = stkSizes.begin(); it!=stkSizes.end(); it++) {
-        *eout<<*it<<": ";
-        if(*it==DBL_SIZE) {
-            t_dbl b;
-            memcpy(&b, &stk[pos], *it);
-            *eout<<"D "<<b<<" | ";
-        } else if(*it==INT_SIZE) {
-            t_int a;
-            memcpy(&a, &stk[pos], *it);
-            *eout<<"I "<<a<<" | ";
-        }
-        for(int j = 0; j<*it; j++) {
-            *eout<<(int)stk[j+pos]<<" ";
-        }
-        *eout<<endl;
-        pos += *it;
-    }
+void Emulator::printStack(string name, vector<char> *stk) {
+    if(stk->size()==0) return;
+    *eout<<prefix<<name<<": ";
+    for(auto c: *stk) *eout<<(int)c<<" ";
+    *eout<<endl;
 }
 
 void Emulator::run() {
-    stk.resize(0);
+    varStk.resize(0);
+    exprStk.resize(0);
+    frameStk.resize(0);
+    
     ip = 0;
-
-    DataHeader d;
-    memcpy(&d, code, sizeof(DataHeader));
-
-    data = sizeof(DataHeader);
-    ip = data+d.size;
 
     //Set IP to first op
     bool halt = false;
@@ -444,22 +435,16 @@ void Emulator::run() {
         memcpy(&opcode, code+ip, sizeof(opcode));
 
         //Debugging
-        int initialStkSize = stk.size();
         *eout<<prefix<<"OP: "<<opcode<<endl;
-        //*eout<<prefix<<"IP: "<<ip<<endl;
+        *eout<<prefix<<Op::asmLines[ip]<<endl;
+        *eout<<prefix<<"SP: "<<sp<<endl;
         printStack();
         *eout<<endl;
-
+        
         Op *o = Op::opFromCode(opcode);
         o->parseData(code+ip+sizeof(opcode));
         o->run(*this);
 
-        //More debugging
-        int dStkSize = stk.size() - initialStkSize;
-        if(dStkSize>0)
-            stkSizes.push_back(dStkSize);
-        else
-            stkSizes.pop_back();
 
         halt = o->code==op_halt;
         delete o;

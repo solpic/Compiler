@@ -22,7 +22,6 @@ private:
     Tokenizer *t;
     SymTab sym;
     Generator g;
-    std::string asmOut;
     static std::ostream *pout;
     
     void declarations(bool funcs);
@@ -31,7 +30,7 @@ private:
     void var_decl();
     void match(const char *s);
     bool testMatch(const char *s);
-    Symbol *currentFunc;
+    Function *currentFunc;
     Token* cur();
     Token* next();
     void matchType(TokenType type, const char *expected);
@@ -48,7 +47,7 @@ private:
     Type E();
     Type T();
     Type F();
-    void function(Symbol &s);
+    void function(Function *f);
     void throwError();
     
     bool matchOperatorE(Operator &op);
@@ -57,7 +56,7 @@ private:
     void controlStatement(Symbol &s);
     
     ControlType getControlType();
-    void builtInFunction(Symbol &s);
+    void builtInFunction(Symbol *s);
 
 public:
     static void setOutputStream(std::ostream *o) {
@@ -66,8 +65,9 @@ public:
     ~Parser() {}
     Parser(Tokenizer *tok);
     void parse();
-    void dumpAsm() { std::cout<<asmOut; }
     void compile(const char *fname);
+    
+    void addVar(std::string name, Type t);
 };
 
 

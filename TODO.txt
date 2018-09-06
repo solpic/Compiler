@@ -1,7 +1,8 @@
 REFACTORING:
 
-Get rid of ParseVar,
-replace with Type
+Make Symbol polymorphic
+Make emulator use two stacks, expression stack and variable stack
+Should we have frame stack as well? WHy not?
 
-Type consolidates all the ParseVar related stuff,
-as well as handling Operater binary serialization
+First we refactor parser code, then work on logic
+Or first work on logic?

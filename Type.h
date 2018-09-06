@@ -8,7 +8,8 @@ typedef long t_int;
 typedef double t_dbl;
 typedef char t_char;
 typedef int LBL;
-typedef int t_ptr;
+typedef long t_ptr;
+    
 #define LBL_SIZE sizeof(int)
 
 #define INT_SIZE sizeof(t_int)

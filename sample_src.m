@@ -1,7 +1,20 @@
-function: double square(double);
+globals
+	int j, k;
+end
 
-define: double square(double d) {
-	return d*d;
-};
+prototypes
+	void tmp(int);
+end
 
-printvar(square(4.5));
+functions
+	void tmp(int i) {
+		printvar(i*k);
+		return;
+	};
+end
+
+begin
+	j = 1;
+	k = 3;
+	tmp(j);
+end

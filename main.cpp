@@ -34,14 +34,8 @@ int main(int argc, char **argv)
     Parser p(&t);
 
     p.parse();
-
-    if(!quiet) {
-        cout<<endl<<"ASM:"<<endl;
-        p.dumpAsm();
-        cout<<endl;
-    }
     p.compile(outFile);
-
+    
     Emulator e(outFile);
 
     return 0;
