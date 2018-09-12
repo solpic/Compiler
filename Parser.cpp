@@ -283,8 +283,8 @@ Type Parser::F() {
         Symbol *s = sym.get(cur()->str());
         if(s->getType()==SYM_VAR) {
             Variable *v = (Variable*)s;
-            int p = v->getPtrAddr();
-            g.addOp(new PushI(PTR_SIZE, &p), "pushI &"+cur()->str()+": "+to_string(v->getPtrAddr()));
+            t_ptr p = v->getPtrAddr();
+            g.addOp(new PushI(PTR_SIZE, &p), "pushI &"+cur()->str()+": "+to_string(p));
             next();
             return v->getVarType();
         } else {
@@ -400,6 +400,7 @@ void Parser::pointerAssignment() {
     match("=");
     next();
     Type q = E();
+    
     v.dereference();
     if(v!=q) {
         cout<<"Can't dereference "<<q<<" into "<<v<<" at ";
@@ -578,6 +579,7 @@ void Parser::func_def() {
     list<string> varNames;
     while(!done) {
         Type type = Type::parse(t);
+        cout<<type<<" "<<cur()->str()<<endl;
         sym.addVar(cur()->str(), type);
         argsSize += type.size();
         
@@ -686,9 +688,22 @@ void Parser::var_decl() {
             cout<<"Duplicate symbol "<<cur()->str()<<" at ";
             throwError();
         }
-        sym.addVar(cur()->str(), type);
+        string varName = cur()->str();
+        Variable *v = sym.addVar(cur()->str(), type);
         g.addOp(new PushLocal(type.size()), "allocate space for "+cur()->str());
         next();
+        
+        if(testMatch("=")) {
+            next();
+            //Assign
+            Type eType = E();
+            if(type!=eType) {
+                cout<<"Can't assign "<<eType<<" to "<<type<<" at ";
+                throwError();
+            }
+            
+            g.addOp(new Pop(v->getAddr(), v->getSize()), "pop to "+varName);
+        }
         
         if(testMatch(";")) {
             listDone = true;

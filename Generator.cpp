@@ -269,9 +269,10 @@ void PopToPtr::run(Emulator &e) {
     e.pop(PTR_SIZE, &c);
 
     if(c>=0) {
+        cout<<e.varStk.size()<<", "<<c<<endl;
         memcpy(&e.varStk[c], tmp, size);
     } else {
-        memcpy((void*)(-c), tmp, size);
+        memcpy(&e.varStk[-c], tmp, size);
     }
 
     e.ip += opSize();

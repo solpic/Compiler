@@ -1,9 +1,10 @@
 globals
-	int j, k;
+	int j = 1, k = 5;
 end
 
 prototypes
 	void tmp(int);
+	void tmp2(int*);
 end
 
 functions
@@ -11,10 +12,15 @@ functions
 		printvar(i*k);
 		return;
 	};
+	void tmp2(int* q) {
+		*q = 10;
+		return;
+	};
 end
 
 begin
-	j = 1;
-	k = 3;
 	tmp(j);
+	printvar(j);
+	tmp2(&j);
+	printvar(j);
 end
