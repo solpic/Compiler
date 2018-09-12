@@ -9,6 +9,7 @@ end
 
 functions
 	void tmp(int i) {
+		int q;
 		printvar(i*k);
 		return;
 	};

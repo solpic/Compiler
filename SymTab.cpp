@@ -86,7 +86,7 @@ int Scope::size() {
 
 void SymTab::newScope() {
     //We don't want the global scope added here
-    if(scopes.size()>1) scopeSize += scopes.back()->size();
+    if(scopes.size()>1) {scopeSize += scopes.back()->size();}
     scopes.push_back(new Scope());
 }
 
@@ -95,7 +95,8 @@ void SymTab::popScope() {
     
     auto sym = tbl.begin();
     while(sym!=tbl.end()) {
-        if(sym->second->getType()==SYM_VAR&&((Variable*)sym->second)->getScope()==s) {
+		Variable *v = (Variable*)sym->second;
+        if(sym->second->getType()==SYM_VAR&&v->getScope()==s) {
             Symbol *tmp = sym->second;
             sym = tbl.erase(sym);
             
@@ -103,25 +104,15 @@ void SymTab::popScope() {
         }else sym++;
     }
     
-    scopeSize -= scopes.back()->size();
-    delete scopes.back();
+    Scope *scp = scopes.back();
     scopes.pop_back();
+    delete scp;
 }
 
 
-//Pops all local scopes and returns their total size for stack resizing
+//Gets total size of locals scope for returning
 int SymTab::popLocals() {
-    int s = scopeSize;
-    
-    auto i = scopes.begin();
-    i++;
-    while(i!=scopes.end()) {
-        auto tmp = *i;
-        i = scopes.erase(i);
-        delete tmp;
-    }
-    
-    return s;
+    return scopeSize;
 }
 
 int SymTab::nextAddr(Type t) {

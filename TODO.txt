@@ -1,8 +1,12 @@
-REFACTORING:
+TODO:
 
-Make Symbol polymorphic
-Make emulator use two stacks, expression stack and variable stack
-Should we have frame stack as well? WHy not?
+Local variables
+Structs
+String literals
+C hooks
+Control statements
 
-First we refactor parser code, then work on logic
-Or first work on logic?
+TODONExt:
+Local variables
+String literals
+Control statements

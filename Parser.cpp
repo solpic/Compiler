@@ -521,7 +521,10 @@ void Parser::statements() {
         int scopeSize = sym.popLocals();
         g.addOp(new PushI(LBL_SIZE, &scopeSize), "pushi:localscopesize "+to_string(scopeSize));
         g.addOp(new Return(), "return");
-    }else {
+    }else if(Type::isType(t)){
+		//Variable declaration
+		var_decl();
+	}else {
         cout<<"Expected statement, got "<<cur()->str()<<" at ";
         cur()->tellPositionInformation(cout, t);
         sym.dump(cout);
@@ -579,7 +582,7 @@ void Parser::func_def() {
     list<string> varNames;
     while(!done) {
         Type type = Type::parse(t);
-        cout<<type<<" "<<cur()->str()<<endl;
+        
         sym.addVar(cur()->str(), type);
         argsSize += type.size();
         
@@ -622,6 +625,8 @@ void Parser::func_def() {
     next();
     match(";");
     next();
+    
+    sym.popScope();
 }
 
 void Parser::parse() {
