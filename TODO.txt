@@ -1,12 +1,5 @@
 TODO:
 
-Local variables
+Control statements
 Structs
 String literals
-C hooks
-Control statements
-
-TODONExt:
-Local variables
-String literals
-Control statements

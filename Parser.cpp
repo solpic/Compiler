@@ -283,10 +283,16 @@ Type Parser::F() {
         Symbol *s = sym.get(cur()->str());
         if(s->getType()==SYM_VAR) {
             Variable *v = (Variable*)s;
-            t_ptr p = v->getPtrAddr();
-            g.addOp(new PushI(PTR_SIZE, &p), "pushI &"+cur()->str()+": "+to_string(p));
+            t_int addr = v->getAddr();
+            addr = addr<0?-addr:addr;
+            g.addOp(new PushI(INT_SIZE, &addr), "pushI &"+cur()->str()+": "+to_string(addr));
             next();
-            return v->getVarType();
+            
+            if(v->getScope()>1) g.addOp(new AddrVar(), "addrvar");
+            
+            Type tmp = v->getVarType();
+            tmp.reference();
+            return tmp;
         } else {
             cout<<"Expected variable, got "<<cur()->str()<<" at ";
             throwError();
@@ -296,9 +302,9 @@ Type Parser::F() {
         match("*");
         next();
         Type p = E();
-        if(p.isPtr()) {
+        if(!p.isPtr()) {
             cout<<"Expected pointer for dereference, instead got "<<p<<endl;
-            error();
+            throwError();
         }
 
         g.addOp(new PushPtr(p.size()), "pushptr "+p.toString()+": "+to_string(p.size()));
@@ -329,7 +335,12 @@ Type Parser::F() {
             cout<<"Expected variable or function, got "<<cur()->str()<<" at ";
             throwError();
         }
-    } else {
+    } else if(testMatchType(TK_STR_LIT)){
+		g.addOp(new PushI(cur()->str().size(), cur()->str().c_str()), "pushI "+cur()->str()); 
+		int i = cur()->str().size();
+		g.addOp(new PushI(sizeof(i), &i), "pushI sizeof "+to_string(i)); next();
+		return Type::charArray();
+	}else {
         cout<<"Unexpected token "<<cur()->str()<<" at ";
         throwError();
     }
@@ -410,7 +421,48 @@ void Parser::pointerAssignment() {
     g.addOp(new PopToPtr(q.size()), "poptoptr "+to_string(q.size()));
 }
 
-void Parser::controlStatement(Symbol &s) {
+void Parser::controlStatement(Symbol *s) {
+	ControlType c = ((ControlStatement*)s)->type;
+	if(c==C_IF) {
+		int endLabel = g.nextLabel();
+		int nextLabel = g.nextLabel();
+		
+		bool done = false;
+		while(!done) {
+			g.addOp(new Label(nextLabel), "L"+to_string(nextLabel));
+			nextLabel = g.nextLabel();
+				
+			match("("); next();
+			Type t = E();
+			match(")"); next();
+			
+			if(t!=Type::tChar()) {
+				cout<<"Expected char (bool) for if statement, got "<<t<<" at ";
+				throwError();
+			}
+			g.addOp(new PushLbl(nextLabel), "pushlbl L"+to_string(nextLabel)+"\n");
+			g.addOp(new IfNJmp(), "if not jump");
+			
+			
+			match("{"); next();
+			while(!testMatch("}")) statements();
+			g.addOp(new PushLbl(endLabel), "pushlbl L"+to_string(endLabel)+"\n");
+			g.addOp(new Jump(), "jmp");
+			match("}"); next();
+			
+			if(testMatch("else")) {
+				next();
+				if(!testMatch("if")) {
+					g.addOp(new Label(nextLabel), "L"+to_string(nextLabel));
+					match("{"); next();
+					while(!testMatch("}")) statements();
+					match("}"); next();
+					done = true;
+				}else next();
+			}else done = true;
+		}
+		g.addOp(new Label(endLabel), "L"+to_string(endLabel));
+	}
     /*
     if(s.cType==CIf) {
     //If statement
@@ -472,7 +524,18 @@ void Parser::builtInFunction(Symbol *s) {
         next();
 
         g.addOp(new PrintNum(v.toSerializedType()), "printnum "+v.toString());
-    }
+    }else if(f->func==F_PRINT) {
+		next();
+		match("("); next();
+		Type v = E();
+		if(v!=Type::charArray()) {
+			cout<<"Expected char array got "<<cur()->str()<<" at ";
+			throwError();
+		}
+		match(")"); next();
+		
+		g.addOp(new Print(), "print");
+	}
 }
 
 void Parser::statements() {
@@ -489,8 +552,9 @@ void Parser::statements() {
             builtInFunction(s);
             match(";");
             next();
-        //} else if(type==SYM_CONTROL) {
-          //  controlStatement(s);
+        } else if(type==SYM_CONTROL) {
+			next();
+            controlStatement(s);
         } else if(type==SYM_FUNC) {
             function((Function*)s);
             match(";");
@@ -538,6 +602,10 @@ Parser::Parser(Tokenizer *tok) {
 
 
     sym.addBuiltInFunc("printvar", F_PRINTNUM);
+    sym.addBuiltInFunc("print", F_PRINT);
+    
+    sym.addControlStatement("if", C_IF);
+    sym.addControlStatement("while", C_WHILE);
 }
 
 void Parser::func_def() {

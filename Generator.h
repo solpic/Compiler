@@ -12,9 +12,9 @@
 #define op_pushi 1
 #define op_halt 2
 #define op_pop 3
-#define op_printint 4
+#define OP_PRINTint 4
 #define op_push 5
-#define op_print 6
+#define OP_PRINT 6
 #define op_ifnjmp 7 //if not jump
 #define op_label 8 //not a real op, just a placeholder
 #define op_add 9
@@ -41,6 +41,7 @@
 #define OP_NOT 30
 #define OP_PUSHLOCAL 31
 #define OP_POPLOCAL 32
+#define OP_ADDRVAR 33
 
 
 using namespace std;
@@ -71,6 +72,24 @@ public:
     }
     
     static Op* opFromCode(int code);
+};
+
+class IfNJmp: public Op{
+public:
+	IfNJmp() { code = op_ifnjmp; }
+	void run(Emulator &e);
+};
+
+class AddrVar: public Op{
+public:
+	AddrVar(){ code = OP_ADDRVAR; }
+	void run(Emulator &e);
+};
+
+class Print: public Op{
+public:
+	Print(){ code = OP_PRINT; }
+	void run(Emulator &e);
 };
 
 class PushLocal: public Op{
@@ -249,10 +268,10 @@ public:
 class PrintNum: public Op{
 public:
     SerializedType type;
-    PrintNum() { code = op_printint; }
+    PrintNum() { code = OP_PRINTint; }
     PrintNum(SerializedType v) {
         type = v;
-        code = op_printint;
+        code = OP_PRINTint;
     }
     int dataSize() { return sizeof(type); }
     void putData(char *data) {
@@ -269,7 +288,7 @@ public:
     int size;
     char *value;
     PushI() { code = op_pushi; }
-    PushI(int s, void *v) {
+    PushI(int s, const void *v) {
         size = s;
         value = new char[size];
         memcpy(value, v, size);

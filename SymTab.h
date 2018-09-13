@@ -37,9 +37,9 @@ enum BuiltInFunction{
     F_READINT = 3
 };
 
-enum ControlTypes{
-    CIf = 1,
-    CWhile = 2
+enum ControlType{
+    C_IF = 1,
+    C_WHILE = 2
 };
 
 class Symbol{
@@ -55,7 +55,6 @@ public:
     int getAddr() { return addr; }
     int getSize() { return type.size(); }
     Type getVarType() { return type; }
-    int getPtrAddr() { if(scope==0) return -addr; else return addr; }
 private:
     int scope;
     int addr;
@@ -88,6 +87,15 @@ public:
     
     BuiltInFunc() {}
     ~BuiltInFunc() {}
+};
+
+class ControlStatement: public Symbol{
+public:
+	SymbolType getType() { return SYM_CONTROL; }
+	ControlType type;
+	
+	ControlStatement() {}
+	~ControlStatement() {}
 };
 
 class Scope{
@@ -135,6 +143,13 @@ public:
         
         tbl.insert({key, f});
     }
+    void addControlStatement(const std::string &key, ControlType cntrl) {
+		ControlStatement *c = new ControlStatement();
+		c->type = cntrl;
+		
+		tbl.insert({key, c});
+	}
+		
     
     void newScope();
     void popScope();

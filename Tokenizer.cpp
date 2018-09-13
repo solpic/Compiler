@@ -258,7 +258,7 @@ void Tokenizer::tellPositionInformation(ostream &o, int lN, int lI, int aI, int 
     if(!getline(ifile, tmp)) error("Couldn't read line for debugging");
     
     o<<"line number: "<<lN<<", index: "<<lI<<endl;
-    //o<<tmp.substr(0, lI-1)<<"**"<<tmp.substr(lI, len)<<"**"<<tmp.substr(lI+len, string::npos)<<endl;
+    //o<<tmp.substr(0, lI-1)<<"__"<<tmp.substr(lI, len)<<"__"<<tmp.substr(lI+len, string::npos)<<endl;
     o<<tmp<<endl;
     
     ifile.seekg(curPos);

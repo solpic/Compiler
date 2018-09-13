@@ -26,7 +26,7 @@ Op* Op::opFromCode(int code) {
         return new Pop();
         break;
 
-    case op_printint:
+    case OP_PRINTint:
         return new PrintNum();
         break;
 
@@ -125,6 +125,18 @@ Op* Op::opFromCode(int code) {
     case OP_POPLOCAL:
         return new PopLocal();
         break;
+    
+    case OP_ADDRVAR:
+		return new AddrVar();
+		break;
+		
+	case OP_PRINT:
+		return new Print();
+		break;
+		
+	case op_ifnjmp:
+		return new IfNJmp();
+		break;
 
     default:
         cout<<"Unrecognized op code "<<code<<endl;
@@ -156,6 +168,15 @@ void Return::run(Emulator &e) {
     e.sp = sp_tmp;
     e.ip = ret_ip;
 
+}
+
+void AddrVar::run(Emulator &e) {
+	t_int addr;
+	e.pop(INT_SIZE, &addr);
+	
+	addr += e.sp;
+	e.push(INT_SIZE, &addr);
+	e.ip += opSize();
 }
 
 void Call::run(Emulator &e) {
@@ -278,6 +299,17 @@ void PopToPtr::run(Emulator &e) {
     e.ip += opSize();
 }
 
+void IfNJmp::run(Emulator &e) {
+	LBL l;
+	t_char c;
+	
+	e.pop(LBL_SIZE, &l);
+	e.pop(CHAR_SIZE, &c);
+	
+	if(c==0) e.ip = l;
+	else e.ip += opSize();
+}
+
 void PushPtr::run(Emulator &e) {
     t_ptr c;
     e.pop(PTR_SIZE, &c);
@@ -289,6 +321,21 @@ void PushPtr::run(Emulator &e) {
     }
 
     e.ip += opSize();
+}
+
+void Print::run(Emulator &e) {
+	int i;
+	e.pop(sizeof(i), &i);
+	
+	char *c = new char[i+1];
+	c[i] = 0;
+	for(int j = 0; j<i; j++) {
+		e.pop(sizeof(char), c+i-1-j);
+	}
+	cout<<c;
+	delete[] c;
+	
+	e.ip += opSize();
 }
 
 void Push::run(Emulator &e) {

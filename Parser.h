@@ -10,11 +10,6 @@
 #include <algorithm>
 #include <utility>
 
-enum ControlType{
-    If = 1,
-    While = 2
-};
-
 class Parser{
 private:
     int labelMain;
@@ -53,7 +48,7 @@ private:
     bool matchOperatorE(Operator &op);
     bool matchOperatorT(Operator &op);
     
-    void controlStatement(Symbol &s);
+    void controlStatement(Symbol *s);
     
     ControlType getControlType();
     void builtInFunction(Symbol *s);

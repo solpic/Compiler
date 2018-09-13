@@ -8,6 +8,13 @@ typedef long t_int;
 typedef double t_dbl;
 typedef char t_char;
 typedef int LBL;
+
+enum PtrType{
+	LOCAL = 0,
+	GLOBAL = 1,
+	MEM = 2
+};
+
 typedef long t_ptr;
     
 #define LBL_SIZE sizeof(int)
@@ -46,6 +53,7 @@ public:
     static Type tChar() { return Type(PRIM_CHAR, 0, 0); }
     static Type tInt() { return Type(PRIM_INT, 0, 0); }
     static Type tDbl() { return Type(PRIM_DBL, 0, 0); }
+    static Type charArray() { return Type(PRIM_CHAR, 1, 0); }
     
     friend std::ostream & operator << (std::ostream &out, const Type &t);
     static Type parse(Tokenizer *t);
@@ -59,6 +67,7 @@ public:
     bool isPtr() { return pointerLevel>0; }
     
     void dereference();
+    void reference() { pointerLevel++; }
     
     bool operator==(const Type &other);
     bool operator!=(const Type &other);
