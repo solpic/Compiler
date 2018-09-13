@@ -217,7 +217,6 @@ Token* Tokenizer::getNextToken() {
         tok = "";
         char c = getChar();
         while(c!='"') {
-            tok.push_back(c);
             //Handle escapes
             if(c=='\\') {
                 c = getChar();
@@ -230,7 +229,7 @@ Token* Tokenizer::getNextToken() {
                 }else{
                     tok.push_back(e);
                 }
-            }
+            }else tok.push_back(c);
             
             c = getChar();
         }

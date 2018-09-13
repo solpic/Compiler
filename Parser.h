@@ -49,6 +49,7 @@ private:
     bool matchOperatorT(Operator &op);
     
     void controlStatement(Symbol *s);
+    void matchControlBlock();
     
     ControlType getControlType();
     void builtInFunction(Symbol *s);
@@ -60,7 +61,7 @@ public:
     ~Parser() {}
     Parser(Tokenizer *tok);
     void parse();
-    void compile(const char *fname);
+    int compile(const char *fname);
     
     void addVar(std::string name, Type t);
 };

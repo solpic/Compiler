@@ -61,6 +61,21 @@ private:
     Type type;
 };
 
+class StringLit: public Symbol{
+public:
+	SymbolType getType() { return SYM_STRINGLIT; }
+	StringLit(int o, string s) {
+		offset = o;
+		value = s;
+	}
+	int getOffset() { return offset; }
+	int size() { return value.size(); }
+	const char *c_str() { return value.c_str(); }
+private:
+	string value;
+	int offset;
+};
+
 class Function: public Symbol{
 public:
     SymbolType getType();
@@ -113,15 +128,19 @@ private:
 //First scope is globals
 class SymTab{
 private:
+	int stringOffset;
     static std::ostream *sout;
     symmap tbl;
     
     list<Scope*> scopes;
+    list<StringLit*> strings;
     int scopeSize;
     
     int nextAddr(Type t);
     
 public:
+	int stringDataSize() { return stringOffset; }
+	void writeStringData(char *data);
     int popLocals();
 
     static void setOutput(std::ostream *o) { sout = o; }
@@ -143,6 +162,7 @@ public:
         
         tbl.insert({key, f});
     }
+    StringLit* addStringLit(std::string value);
     void addControlStatement(const std::string &key, ControlType cntrl) {
 		ControlStatement *c = new ControlStatement();
 		c->type = cntrl;
@@ -152,7 +172,7 @@ public:
 		
     
     void newScope();
-    void popScope();
+    int popScope();
 };
 
 #endif

@@ -42,6 +42,7 @@
 #define OP_PUSHLOCAL 31
 #define OP_POPLOCAL 32
 #define OP_ADDRVAR 33
+#define OP_PUSHSTRING 34
 
 
 using namespace std;
@@ -72,6 +73,12 @@ public:
     }
     
     static Op* opFromCode(int code);
+};
+
+class PushString: public Op{
+public:
+	PushString() { code = OP_PUSHSTRING; }
+	void run(Emulator &e);
 };
 
 class IfNJmp: public Op{
@@ -322,13 +329,14 @@ public:
     ~Generator() {}
     void resolveLabels();
     void addOp(Op *o, string a) { o->asmLine = a; ops.push_back(o); }
-    void generate(const char *fname, SymTab &sym);
+    int generate(const char *fname, SymTab &sym);
     
     
 };
 
 class Emulator{
 public:
+	int stringOffset;
     char* code;
     static std::string prefix;
     int ip, data;
@@ -350,7 +358,7 @@ public:
     
     static std::ostream *eout;
     static void setOutput(std::ostream *o) { eout = o; }
-    Emulator(const char *fname);
+    Emulator(const char *fname, int sOffset);
     ~Emulator();
     void run();
     void runOp(Op &o);

@@ -34,9 +34,9 @@ int main(int argc, char **argv)
     Parser p(&t);
 
     p.parse();
-    p.compile(outFile);
+    int off = p.compile(outFile);
     
-    Emulator e(outFile);
+    Emulator e(outFile, off);
 
     return 0;
 }

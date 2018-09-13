@@ -336,9 +336,12 @@ Type Parser::F() {
             throwError();
         }
     } else if(testMatchType(TK_STR_LIT)){
-		g.addOp(new PushI(cur()->str().size(), cur()->str().c_str()), "pushI "+cur()->str()); 
-		int i = cur()->str().size();
-		g.addOp(new PushI(sizeof(i), &i), "pushI sizeof "+to_string(i)); next();
+		StringLit *s = sym.addStringLit(cur()->str());
+		int o = s->getOffset();
+		g.addOp(new PushI(sizeof(o), &o), "pushi "+to_string(o));
+		g.addOp(new PushString(), "pushstring "+cur()->str());
+		next();
+		
 		return Type::charArray();
 	}else {
         cout<<"Unexpected token "<<cur()->str()<<" at ";
@@ -346,10 +349,10 @@ Type Parser::F() {
     }
 }
 
-void Parser::compile(const char* fname) {
+int Parser::compile(const char* fname) {
     sym.dump(*pout);
     g.resolveLabels();
-    g.generate(fname, sym);
+    return g.generate(fname, sym);
 }
 
 Token* Parser::cur() {
@@ -421,6 +424,19 @@ void Parser::pointerAssignment() {
     g.addOp(new PopToPtr(q.size()), "poptoptr "+to_string(q.size()));
 }
 
+void Parser::matchControlBlock() {
+	bool multiline = false;
+	if(testMatch("{")) {
+		match("{"); next();
+		sym.newScope();
+		while(!testMatch("}")) statements();
+		int scopeSize = sym.popScope();
+		match("}"); next();
+		
+		if(scopeSize>0) g.addOp(new PopLocal(scopeSize), "poplocal "+to_string(scopeSize));
+	}else statements();
+}
+
 void Parser::controlStatement(Symbol *s) {
 	ControlType c = ((ControlStatement*)s)->type;
 	if(c==C_IF) {
@@ -444,23 +460,42 @@ void Parser::controlStatement(Symbol *s) {
 			g.addOp(new IfNJmp(), "if not jump");
 			
 			
-			match("{"); next();
-			while(!testMatch("}")) statements();
+			matchControlBlock();
 			g.addOp(new PushLbl(endLabel), "pushlbl L"+to_string(endLabel)+"\n");
 			g.addOp(new Jump(), "jmp");
-			match("}"); next();
 			
 			if(testMatch("else")) {
 				next();
 				if(!testMatch("if")) {
 					g.addOp(new Label(nextLabel), "L"+to_string(nextLabel));
-					match("{"); next();
-					while(!testMatch("}")) statements();
-					match("}"); next();
+					matchControlBlock();
 					done = true;
 				}else next();
 			}else done = true;
 		}
+		g.addOp(new Label(endLabel), "L"+to_string(endLabel));
+	}else if(c==C_WHILE) {
+		int endLabel = g.nextLabel();
+		int startLabel = g.nextLabel();
+		
+		//Label beginning of loop
+		g.addOp(new Label(startLabel), "L"+to_string(startLabel));
+		match("("); next();
+		
+		Type v = E();
+		if(v!=Type::tChar()) {
+			cout<<"Expected bool (char) for while statement expression, got "<<v<<" at ";
+			throwError();
+		}
+		
+		match(")"); next();
+		g.addOp(new PushLbl(endLabel), "pushlbl L"+to_string(endLabel));
+		g.addOp(new IfNJmp(), "if not jump");
+		
+		matchControlBlock();
+		g.addOp(new PushLbl(startLabel), "pushlbl L"+to_string(startLabel));
+		g.addOp(new Jump(), "jump");
+		
 		g.addOp(new Label(endLabel), "L"+to_string(endLabel));
 	}
     /*

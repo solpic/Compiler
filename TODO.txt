@@ -1,5 +1,8 @@
 TODO:
 
-Control statements
+While statements
 Structs
 String literals
+
+Notes:
+Little reason to believe stacks are working properly

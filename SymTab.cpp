@@ -48,6 +48,7 @@ Symbol* SymTab::get(const std::string &key) {
 
 SymTab::SymTab() {
     scopeSize = 0;
+    stringOffset = 0;
     
     scopes.push_back(new Scope());
 }
@@ -85,13 +86,13 @@ int Scope::size() {
 }
 
 void SymTab::newScope() {
-    //We don't want the global scope added here
-    if(scopes.size()>1) {scopeSize += scopes.back()->size();}
     scopes.push_back(new Scope());
 }
 
-void SymTab::popScope() {
+int SymTab::popScope() {
     int s = scopes.size();
+    Scope *scp = scopes.back();
+    int localScopeSize = scp->size();
     
     auto sym = tbl.begin();
     while(sym!=tbl.end()) {
@@ -104,16 +105,36 @@ void SymTab::popScope() {
         }else sym++;
     }
     
-    Scope *scp = scopes.back();
     scopes.pop_back();
     delete scp;
+    
+    scopeSize -= localScopeSize;
+    return localScopeSize;
 }
 
+StringLit* SymTab::addStringLit(std::string value) {
+	StringLit *s = new StringLit(stringOffset, value);
+	
+	stringOffset += value.size() + 1;
+	strings.push_back(s);
+	return s;
+}
+
+void SymTab::writeStringData(char *data) {
+	int offset = 0;
+	for(auto i: strings) {
+		StringLit *s = i;
+		memcpy(data+offset, s->c_str(), s->size() + 1);
+		offset += s->size() + 1;
+		delete s;
+	}
+}
 
 //Gets total size of locals scope for returning
 int SymTab::popLocals() {
     return scopeSize;
 }
+
 
 int SymTab::nextAddr(Type t) {
     int a = scopeSize + scopes.back()->size();
@@ -127,6 +148,9 @@ int SymTab::nextAddr(Type t) {
 Variable* SymTab::addVar(const std::string &key, Type t) {
     Variable *v = new Variable(nextAddr(t), t, scopes.size());
     tbl.insert({key, v});
+    
+    if(scopes.size()>1) scopeSize += v->getSize();
+    
     return v;
 }
 

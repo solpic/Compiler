@@ -137,12 +137,26 @@ Op* Op::opFromCode(int code) {
 	case op_ifnjmp:
 		return new IfNJmp();
 		break;
+		
+	case OP_PUSHSTRING:
+		return new PushString();
+		break;
 
     default:
         cout<<"Unrecognized op code "<<code<<endl;
         error();
         return 0;
     }
+}
+
+void PushString::run(Emulator &e) {
+	int offset;
+	e.pop(sizeof(offset), &offset);
+	
+	t_ptr f_offset = -((long)e.code+e.stringOffset+offset);
+	e.push(PTR_SIZE, &f_offset);
+	
+	e.ip += opSize();
 }
 
 void Return::run(Emulator &e) {
@@ -324,16 +338,11 @@ void PushPtr::run(Emulator &e) {
 }
 
 void Print::run(Emulator &e) {
-	int i;
-	e.pop(sizeof(i), &i);
-	
-	char *c = new char[i+1];
-	c[i] = 0;
-	for(int j = 0; j<i; j++) {
-		e.pop(sizeof(char), c+i-1-j);
-	}
-	cout<<c;
-	delete[] c;
+	t_ptr t;
+	e.pop(sizeof(t), &t);
+	if(t<0)
+		cout<<(char*)(-t);
+	else error();
 	
 	e.ip += opSize();
 }
@@ -428,7 +437,7 @@ void Generator::resolveLabels() {
     }
 }
 
-void Generator::generate(const char *fname, SymTab &sym) {
+int Generator::generate(const char *fname, SymTab &sym) {
     string asmOut = "";
     
     ofstream of;
@@ -450,10 +459,18 @@ void Generator::generate(const char *fname, SymTab &sym) {
         }
         delete *i;
     }
+    
+    int stringOffset = of.tellp();
+    char *stringData = new char[sym.stringDataSize()];
+    sym.writeStringData(stringData);
+    of.write(stringData, sym.stringDataSize());
+    delete []stringData;
 
     of.close();
     
     *(Emulator::eout)<<"ASM: "<<endl<<asmOut<<endl;
+    
+    return stringOffset;
 }
 
 void Emulator::printStack() {
@@ -499,7 +516,8 @@ void Emulator::run() {
     } while(!halt);
 }
 
-Emulator::Emulator(const char *fname) {
+Emulator::Emulator(const char *fname, int sOffset) {
+	stringOffset = sOffset;
     ifstream ifile(fname, ifstream::in | ifstream::binary);
 
     ifile.seekg(0, ifile.end);

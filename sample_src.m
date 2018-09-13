@@ -1,21 +1,25 @@
 globals
+	int z = 1;
 end
 
 prototypes
+	void tmp();
 end
 
 functions
+	void tmp() {
+		int p, l, r;
+		return;
+	};
 end
 
 begin
-	int j = 6;
-	if(j==5) {
-		print("J is 5");
-	}else if(j<5) {
-		print("J is less than 5");
-	}else if(j==6){
-		print("J is 6");
-	}else{
-		print("J is something else");
+	int j = 0;
+	while(j<10) {
+		print("Hello\n");
+		j = j + 1;
 	}
+	
+	char k = 'd';
+	printvar(k);
 end
