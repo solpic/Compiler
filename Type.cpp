@@ -1,11 +1,16 @@
 #include "Type.h"
+#include "SymTab.h"
 
 using namespace std;
 
 Type::Type()  {
     pointerLevel = 0;
     structSym = 0;
+    prim = PRIM_INT;
 }
+
+SymTab* Type::symtab = 0;
+void Type::setSymTab(SymTab *s) { symtab = s; }
 
 Type::Type(Primitive p, int ptrLvl, StructDef *strct) {
     prim = p;
@@ -13,11 +18,11 @@ Type::Type(Primitive p, int ptrLvl, StructDef *strct) {
     structSym = strct;
 }
 
-int Type::size() {
+int Type::size() const{
     if(pointerLevel>0)
         return PTR_SIZE;
     else if(structSym)
-        return 0;
+        return structSym->size();
     else if(prim==PRIM_INT)
         return INT_SIZE;
     else if(prim==PRIM_DBL)
@@ -35,6 +40,7 @@ string Type::toString() const{
     string s;
     if(structSym) {
         //Do something here
+        s += structSym->name;
     }else{
         if(prim==PRIM_INT) s += "int";
         else if(prim==PRIM_DBL) s += "double";
@@ -59,6 +65,7 @@ bool Type::isBType(SerializedType t) {
 bool Type::equals(Type a, Type b) {
     if(a.pointerLevel!=b.pointerLevel) return false;
     if(a.structSym!=b.structSym) return false;
+    if(a.structSym&&(a.structSym==b.structSym)) return true;
     if(a.prim!=b.prim) return false;
     return true;
 }
@@ -72,10 +79,10 @@ bool Type::isType(Tokenizer *t) {
     if(t->cur()->equals("char")) return true;
     else if(t->cur()->equals("double")) return true;
     else if(t->cur()->equals("int")) return true;
-    else{
-        //We need to check for structs
-        return false;
-    }
+    else if(symtab->keyExists(t->cur()->str())){
+		if(symtab->get(t->cur()->str())->getType()==SYM_STRUCTDEF) return true;
+	}
+	return false;
 }
 
 
@@ -85,10 +92,12 @@ Type Type::parseNoPointer(Tokenizer *t) {
     if(t->cur()->equals("char")) p = PRIM_CHAR;
     else if(t->cur()->equals("int")) p = PRIM_INT;
     else if(t->cur()->equals("double")) p = PRIM_DBL;
-    else{
-        //We don't know what to do for structs
-        error();
-    }
+    else if(symtab->keyExists(t->cur()->str())) {
+		Symbol *sym = symtab->get(t->cur()->str());
+		if(sym->getType()==SYM_STRUCTDEF) {
+			s = (StructDef*)sym; 
+		}else error();
+    }else error();
     t->advance();
     
     return Type(p, 0, s);

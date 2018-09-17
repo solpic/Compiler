@@ -5,7 +5,7 @@ OBJ = g++ -c -g -std=c++11 -fmax-errors=4
 compiler: Error.o Generator.o main.o Operators.o Parser.o SymTab.o Tokenizer.o Type.o
 		g++ -g -std=c++11 *.o -o compiler
 		
-Type.o: Type.h Type.cpp Tokenizer.h Error.h
+Type.o: Type.h Type.cpp Tokenizer.h Error.h SymTab.h
 	$(OBJ) Type.cpp
 
 SymTab.o: SymTab.h SymTab.cpp Type.h

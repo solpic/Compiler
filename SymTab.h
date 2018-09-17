@@ -28,6 +28,7 @@ enum SymbolType{
     SYM_BUILTINFUNC = 3,
     SYM_STRINGLIT = 4,
     SYM_CONTROL = 5,
+    SYM_STRUCTDEF = 6,
     Procedure = 7
 };
 
@@ -59,6 +60,53 @@ private:
     int scope;
     int addr;
     Type type;
+};
+
+class StructDef: public Symbol{
+public:
+	StructDef() {}
+	~StructDef() {}
+	SymbolType getType() { return SYM_STRUCTDEF; }
+	
+	list<Type> vars;
+	list<string> varNames;
+	
+	string name;
+	
+	
+    friend std::ostream & operator << (std::ostream &out, const StructDef &t);
+	
+	int offset(string &name) {
+		int o = 0;
+		auto v = vars.begin();
+		auto n = varNames.begin();
+		while(name!=*n) { 
+			o += (*v).size();
+			v++; n++;
+		}
+		
+		return o;
+	}
+	
+	int size(string &name) {
+		auto v = vars.begin();
+		auto n = varNames.begin();
+		while(name!=*n) {v++; n++;}
+		return (*v).size();
+	}
+	
+	Type type(string &name) {
+		auto v = vars.begin();
+		auto n = varNames.begin();
+		while(name!=*n) {v++; n++;}
+		return *v;
+	}
+	
+	int size() {
+		int s = 0;
+		for(auto t: vars) s += t.size();
+		return s;
+	}
 };
 
 class StringLit: public Symbol{
@@ -153,7 +201,10 @@ public:
     bool keyExists(const std::string &key);
     
     
-    
+    void addStruct(const std::string &key, StructDef *s) {
+		s->name = key;
+		tbl.insert({key, s});
+	}
     Variable* addVar(const std::string &key, Type t);
     Function* addFunc(const std::string &key, Symbol *sym);
     void addBuiltInFunc(const std::string &key, BuiltInFunction fnc) {

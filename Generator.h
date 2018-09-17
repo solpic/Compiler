@@ -43,6 +43,7 @@
 #define OP_POPLOCAL 32
 #define OP_ADDRVAR 33
 #define OP_PUSHSTRING 34
+#define OP_POP_STRUCT_ELT 35
 
 
 using namespace std;
@@ -73,6 +74,12 @@ public:
     }
     
     static Op* opFromCode(int code);
+};
+
+class PopStructElt: public Op{
+public:
+	PopStructElt() { code = OP_POP_STRUCT_ELT; }
+	void run(Emulator &e);
 };
 
 class PushString: public Op{

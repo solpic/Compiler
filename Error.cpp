@@ -10,12 +10,12 @@ void error() {
 
 void error(char *msg) {
     cout<<msg<<endl;
-    exit(-1);
+	error();
 }
 
 void error(const std::string &s) {
     cout<<s<<endl;
-    exit(-1);
+    error();
 }
 
 NullBuffer nullBuffer;

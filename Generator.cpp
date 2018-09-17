@@ -141,6 +141,10 @@ Op* Op::opFromCode(int code) {
 	case OP_PUSHSTRING:
 		return new PushString();
 		break;
+		
+	case OP_POP_STRUCT_ELT:
+		return new PopStructElt();
+		break;
 
     default:
         cout<<"Unrecognized op code "<<code<<endl;
@@ -157,6 +161,20 @@ void PushString::run(Emulator &e) {
 	e.push(PTR_SIZE, &f_offset);
 	
 	e.ip += opSize();
+}
+
+void PopStructElt::run(Emulator &e) {
+	int size, addr, totalSize;
+	e.pop(sizeof(addr), &addr);
+	e.pop(sizeof(size), &size);
+	e.pop(sizeof(totalSize), &totalSize);
+	
+	char *strct = new char[totalSize];
+	e.pop(totalSize, strct);
+	e.push(size, strct+addr);
+	delete []strct;
+	
+	e.ip += opSize();	
 }
 
 void Return::run(Emulator &e) {
@@ -364,17 +382,17 @@ void PrintNum::run(Emulator &e) {
         t_int i;
         e.pop(sizeof(t_int), &i);
 
-        cout<<i<<endl;
+        cout<<i;
     } else if(type==BIN_DBL) {
         t_dbl d;
         e.pop(sizeof(t_dbl), &d);
 
-        cout<<d<<endl;
+        cout<<d;
     } else if(type==BIN_CHAR) {
         t_char c;
         e.pop(sizeof(t_char), &c);
 
-        cout<<c<<endl;
+        cout<<c;
     } else {
         cout<<"PRINTNUM: Unrecognized type"<<endl;
         error();
@@ -482,7 +500,12 @@ void Emulator::printStack() {
 void Emulator::printStack(string name, vector<char> *stk) {
     if(stk->size()==0) return;
     *eout<<prefix<<name<<": ";
-    for(auto c: *stk) *eout<<(int)c<<" ";
+    int i = 0;
+    for(auto c: *stk) {
+		if(stk==&varStk&&i==sp) *eout<<endl<<"SP: "<<endl;
+		*eout<<(int)c<<" ";
+		i++;
+	}
     *eout<<endl;
 }
 

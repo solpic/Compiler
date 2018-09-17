@@ -45,34 +45,39 @@ Type Parser::E() {
     Operator o;
     string opString = cur()->str();
     while(matchOperatorE(o)) {
+		opString = cur()->str();
         next();
-        Type b = T();
-        //Check matching types
-        if(!ptrIntOperatorException(o, a, b)&&!Type::equals(a, b)) {
-            cout<<"Expected appropriate operand type for type "<<a.toString()<<" and operator "<<opString<<" got "<<b.toString()<<" at ";
-            throwError();
-        }
-
-        if(o==ADD) {
-            g.addOp(new Add(a.toSerializedType()), "add");
-        } else if(o==SUBTRACT) {
-            g.addOp(new Sub(a.toSerializedType()), "sub");
-        } else if(o==AND||o==OR) {
-            //First check type
-            if(a.isBType(BIN_CHAR)) {
-                cout<<"Expected char got "<<a.toString()<<" at ";
-                throwError();
-            } else if(b.isBType(BIN_CHAR)) {
-                cout<<"Expected char got "<<b.toString()<<" at ";
-                throwError();
-            }
-            if(o==AND) {
-                g.addOp(new And(a.toSerializedType()), "and");
-            } else if(o==OR) {
-                g.addOp(new Or(a.toSerializedType()), "or");
-            }
-            a = Type::tChar();
-        }
+		Type b = T();
+		//Check matching types
+		if(!ptrIntOperatorException(o, a, b)&&!Type::equals(a, b)) {
+			cout<<"Expected appropriate operand type for type "<<a.toString()<<" and operator "<<opString<<" got "<<b.toString()<<" at ";
+			throwError();
+		}
+		
+		if(o==ADD) {
+			g.addOp(new Add(a.toSerializedType()), "add");
+		} else if(o==SUBTRACT) {
+			g.addOp(new Sub(a.toSerializedType()), "sub");
+		} else if(o==AND||o==OR) {
+			//First check type
+			if(a.isBType(BIN_CHAR)) {
+				cout<<"Expected char got "<<a.toString()<<" at ";
+				throwError();
+			} else if(b.isBType(BIN_CHAR)) {
+				cout<<"Expected char got "<<b.toString()<<" at ";
+				throwError();
+			}
+			if(o==AND) {
+				g.addOp(new And(a.toSerializedType()), "and");
+			} else if(o==OR) {
+				g.addOp(new Or(a.toSerializedType()), "or");
+			}
+			a = Type::tChar();
+		}else{
+			cout<<"Unknown operator at ";
+			throwError();
+		}
+		
     }
     return a;
 }
@@ -115,13 +120,13 @@ bool Parser::matchOperatorT(Operator &op) {
 }
 
 Type Parser::T() {
-    Type a = F();
+    Type a = followStructChain(F());
     Operator o;
     string opString = cur()->str();
     while(matchOperatorT(o)) {
         bool isBool = false;
         next();
-        Type b = F();
+        Type b = followStructChain(F());
         if(!Type::equals(a, b)) {
             cout<<"Expected "<<a<<" got "<<b<<" at ";
             throwError();
@@ -204,6 +209,32 @@ void Parser::function(Function *f) {
     g.addOp(new Call(), "call");
 }
 
+Type Parser::followStructChain(Type curType) {
+	if(testMatch(".")) {
+		if(!curType.isPtr()&&curType.isStruct()) {
+			next();
+			string name = cur()->str();
+			StructDef *strct = curType.getStruct();
+			
+			int offset = strct->offset(name);
+			int size = strct->size(name);
+			Type type = strct->type(name);
+			int totalSize = strct->size();
+			
+			g.addOp(new PushI(sizeof(totalSize), &totalSize), "pushi totalsize of "+strct->name);
+			g.addOp(new PushI(sizeof(size), &size), "pushi size of "+name);
+			g.addOp(new PushI(sizeof(offset), &offset), "pushi offset of "+name);
+			
+			g.addOp(new PopStructElt(), "pop struct elt "+name);
+			next();
+			return followStructChain(type);
+		}else{
+			cout<<"Expected non-pointer struct, got "<<curType<<" at ";
+			throwError();
+		}
+	}else return curType;
+}
+
 Type Parser::F() {
     //NUM | (E) | VARIABLE | &VARIABLE | STRING_LIT | *E | typecast(E) | true | false | !F | -F
     if(testMatch("!")) {
@@ -229,7 +260,7 @@ Type Parser::F() {
             throwError();
         }
         Type o = F();
-        if(o.isInt()||o.isDbl()) {
+        if(!o.isInt()&&!o.isDbl()) {
             cout<<"Expected int or double for - operator, got "<<o<<" at ";
             throwError();
         }
@@ -306,8 +337,9 @@ Type Parser::F() {
             cout<<"Expected pointer for dereference, instead got "<<p<<endl;
             throwError();
         }
-
-        g.addOp(new PushPtr(p.size()), "pushptr "+p.toString()+": "+to_string(p.size()));
+		Type tmp = p;
+		tmp.dereference();
+        g.addOp(new PushPtr(tmp.size()), "pushptr "+p.toString()+": "+to_string(tmp.size()));
 
         p.dereference();
         return p;
@@ -317,13 +349,14 @@ Type Parser::F() {
             return typecast();
         }
         //Is it variable or function
-
         Symbol *s = sym.get(cur()->str());
         if(s->getType()==SYM_VAR) {
+			string varName = cur()->str();
             Variable *v = (Variable*)s;
-            g.addOp(new Push(v->getAddr(), v->getSize()), 
-                    "push "+cur()->str()+":"+to_string(v->getAddr())+", size:"+to_string(v->getSize()));
             next();
+			g.addOp(new Push(v->getAddr(), v->getSize()), 
+                    "push "+varName+":"+to_string(v->getAddr())+", size:"+to_string(v->getSize()));
+			
 
 
             return v->getVarType();
@@ -360,6 +393,7 @@ Token* Parser::cur() {
 }
 
 Token* Parser::next() {
+	if(testMatch("->")) error();
     return t->advance();
 }
 
@@ -391,22 +425,41 @@ bool Parser::testMatch(const char *s) {
 
 void Parser::assignment() {
     string varName = cur()->str();
+    Symbol *s = sym.get(varName);
+    Variable *var = (Variable*)s;
+    
     *pout<<prefix<<"Assignment of "<<varName<<endl;
     next();
+    int addr = var->getAddr();
+    int size = var->getSize();
+    int sign = addr>=0?1:-1;
+    
+    bool doneWithStructChain = false;
+    Type curType = var->getVarType();
+    while(!doneWithStructChain) {
+		StructDef *strct = curType.getStruct();
+		if(curType.isStruct()&&testMatchNext(".")) {
+			string nm = cur()->str();
+			int offset = strct->offset(nm);
+			size = strct->size(nm);
+			curType = strct->type(nm);
+			
+			addr += offset*sign;
+			next();
+		}else doneWithStructChain = true;
+	}
+    
     match("=");
     next();
 
     Type v = E();
-    Symbol *s = sym.get(varName);
-    Variable *var = (Variable*)s;
-    Type q = var->getVarType();
 
-    if(!Type::equals(v, q)) {
-        cout<<"Can't assign "<<v<<" to "<<q<<" at ";
+    if(!Type::equals(v, curType)) {
+        cout<<"Can't assign "<<v<<" to "<<curType<<" at ";
         throwError();
     }
 
-    g.addOp(new Pop(var->getAddr(), var->getSize()), "pop "+varName+":"+to_string(var->getAddr()));
+    g.addOp(new Pop(addr, size), "pop "+varName+":"+to_string(addr));
 }
 
 void Parser::pointerAssignment() {
@@ -575,7 +628,10 @@ void Parser::builtInFunction(Symbol *s) {
 
 void Parser::statements() {
     *pout<<prefix<<"Current statement: "<<cur()->str()<<endl;
-    if(sym.keyExists(cur()->str())) {
+    if(Type::isType(t)){
+		//Variable declaration
+		var_decl();
+	}else if(sym.keyExists(cur()->str())) {
         Symbol *s = sym.get(cur()->str());
         SymbolType type = s->getType();
         if(type==SYM_VAR) {
@@ -620,10 +676,7 @@ void Parser::statements() {
         int scopeSize = sym.popLocals();
         g.addOp(new PushI(LBL_SIZE, &scopeSize), "pushi:localscopesize "+to_string(scopeSize));
         g.addOp(new Return(), "return");
-    }else if(Type::isType(t)){
-		//Variable declaration
-		var_decl();
-	}else {
+    }else{
         cout<<"Expected statement, got "<<cur()->str()<<" at ";
         cur()->tellPositionInformation(cout, t);
         sym.dump(cout);
@@ -634,6 +687,8 @@ void Parser::statements() {
 Parser::Parser(Tokenizer *tok) {
     t = tok;
     currentFunc = 0;
+    
+    Type::setSymTab(&sym);
 
 
     sym.addBuiltInFunc("printvar", F_PRINTNUM);
@@ -732,6 +787,44 @@ void Parser::func_def() {
     sym.popScope();
 }
 
+bool Parser::testMatchNext(const char *s) {
+	if(testMatch(s)) { next(); return true; }
+	else return false;
+}
+
+void Parser::struct_decl() {
+	StructDef *s = new StructDef();
+	if(!testMatchType(TK_IDEN)) {
+		cout<<"Expected identifier, got "<<cur()->str()<<" at "; throwError();
+	}
+	
+	string name = cur()->str(); next();
+	match("{"); next();
+	
+	while(!testMatch("}")) {
+		if(!Type::isType(t)) {
+			cout<<"Expected type in struct definition, got "<<cur()->str()<<" at "; throwError();
+		}
+		
+		Type type = Type::parseNoPointer(t);
+		
+		do{
+			Type tmp = type;
+			tmp.parsePointerLevel(t);
+			
+			if(!testMatchType(TK_IDEN)) { cout<<"Expected identifier, got "<<cur()->str()<<" at "; throwError(); }
+			string varName = cur()->str(); next();
+			
+			s->vars.push_back(tmp);
+			s->varNames.push_back(varName);
+		}while(testMatchNext(","));
+		matchNext(";");	
+	}
+	
+	sym.addStruct(name, s);
+	matchNext("}"); matchNext(";");
+}
+
 void Parser::parse() {
     sym.addVar("TMPVAR", Type::tChar());
     g.addOp(new PushLocal(Type::tChar().size()), "allocate empty global var");
@@ -750,6 +843,13 @@ void Parser::parse() {
     g.addOp(new PushLbl(labelMain), "pushlbl L"+to_string(labelMain));
     
     g.addOp(new Jump(), "jmp");
+
+	//Structs
+	if(testMatch("structs")) {
+		next();
+		while(!testMatch("end")) struct_decl();
+		next();
+	}
 
     //Function prototypes
     if(testMatch("prototypes")) {

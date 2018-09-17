@@ -130,6 +130,20 @@ void SymTab::writeStringData(char *data) {
 	}
 }
 
+ostream & operator << (ostream &out, const StructDef &t) {
+	auto types = t.vars.begin();
+	auto names = t.varNames.begin();
+	
+	int addr = 0;
+	while(types!=t.vars.end()) {
+		out<<*names<<":"<<*types<<":"<<addr<<endl;
+		addr += (*types).size();
+		types++;
+		names++;
+	}
+	return out;
+}
+
 //Gets total size of locals scope for returning
 int SymTab::popLocals() {
     return scopeSize;
@@ -137,12 +151,21 @@ int SymTab::popLocals() {
 
 
 int SymTab::nextAddr(Type t) {
-    int a = scopeSize + scopes.back()->size();
-    scopes.back()->addVar(t);
-    
-    if(scopes.size()==1) a = -a;
-    
-    return a;
+	if(scopes.size()==1) {
+		int s = -scopes.back()->size();
+		scopes.back()->addVar(t);
+		return s;
+	}else{
+		int i = 0;
+		auto scp = scopes.begin();
+		scp++;
+		while(scp!=scopes.end()) {
+			i += (*scp)->size();
+			scp++;
+		}
+		scopes.back()->addVar(t);
+		return i;
+	}
 }
 
 Variable* SymTab::addVar(const std::string &key, Type t) {

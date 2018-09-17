@@ -24,7 +24,12 @@ private:
     void decl_tail();
     void var_decl();
     void match(const char *s);
+    bool testMatchNext(const char *s);
     bool testMatch(const char *s);
+    void matchNext(const char *s) {
+		match(s); next();
+	}
+	Type followStructChain(Type cur);
     Function *currentFunc;
     Token* cur();
     Token* next();
@@ -33,6 +38,8 @@ private:
 
     void func_decl();
     void func_def();
+    
+    void struct_decl();
 
     void statements();
     void assignment();

@@ -37,13 +37,14 @@ enum SerializedType{
     BIN_PTR = 3
 };
 
-class StructDef{};
+class StructDef;
+class SymTab;
 
 class Type{
 public:
     Type();
     Type(Primitive p, int ptrLvl, StructDef *strct);
-    int size();
+    int size() const;
     std::string toString() const;
     static std::string toString(SerializedType s);
     static bool equals(Type a, Type b);
@@ -65,16 +66,20 @@ public:
     bool isInt() { return equals(*this, tInt()); }
     bool isDbl() { return equals(*this, tDbl()); }
     bool isPtr() { return pointerLevel>0; }
+    bool isStruct() { return structSym!=0; }
+    StructDef* getStruct() { return structSym; }
     
     void dereference();
     void reference() { pointerLevel++; }
     
     bool operator==(const Type &other);
     bool operator!=(const Type &other);
+    static void setSymTab(SymTab *s);
 private:
     Primitive prim;
     int pointerLevel;
     StructDef *structSym;
+    static SymTab *symtab;
 };
     
 

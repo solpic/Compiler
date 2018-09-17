@@ -17,7 +17,9 @@ enum Operator {
     GRTR,
     GRTR_EQ,
     LESS,
-    LESS_EQ
+    LESS_EQ,
+    STRUCT_DOT,
+    STRUCT_REF
 };
 
 class TypeOperator: public Op {

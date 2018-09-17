@@ -1,8 +1,12 @@
 TODO:
 
-While statements
 Structs
-String literals
+Pointer assignment
+Pointer dereference
+Pointer reference
+Regular assignment
+Regular reference
 
-Notes:
-Little reason to believe stacks are working properly
+STRUCT OPS
+should be in F
+They need to be evaluated first
