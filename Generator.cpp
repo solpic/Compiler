@@ -1,4 +1,5 @@
 #include "Generator.h"
+#include "Hooks.h"
 #include "Operators.h"
 #include <fstream>
 
@@ -145,6 +146,14 @@ Op* Op::opFromCode(int code) {
 	case OP_POP_STRUCT_ELT:
 		return new PopStructElt();
 		break;
+		
+	case OP_HOOK:
+		return new Hook();
+		break;
+		
+	case OP_ARRAYREF:
+		return new ArrayRef();
+		break;
 
     default:
         cout<<"Unrecognized op code "<<code<<endl;
@@ -175,6 +184,27 @@ void PopStructElt::run(Emulator &e) {
 	delete []strct;
 	
 	e.ip += opSize();	
+}
+
+void ArrayRef::run(Emulator &e) {
+	t_int size, index;
+	t_ptr ptr;
+	
+	e.pop(sizeof(size), &size);
+	e.pop(sizeof(index), &index);
+	e.pop(sizeof(ptr), &ptr);
+	
+	int sign = ptr>=0?1:-1;
+	
+	ptr += sign*size*index;
+	
+	if(ptr>=0) {
+		e.push(size, &e.varStk[ptr]);
+	}else{
+		e.push(size, (void*)(-ptr));
+	}
+	
+	e.ip += opSize();
 }
 
 void Return::run(Emulator &e) {
@@ -325,7 +355,7 @@ void PopToPtr::run(Emulator &e) {
         cout<<e.varStk.size()<<", "<<c<<endl;
         memcpy(&e.varStk[c], tmp, size);
     } else {
-        memcpy(&e.varStk[-c], tmp, size);
+        memcpy((void*)(-c), tmp, size);
     }
 
     e.ip += opSize();

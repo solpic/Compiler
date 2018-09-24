@@ -1,12 +1,3 @@
 TODO:
 
-Structs
-Pointer assignment
-Pointer dereference
-Pointer reference
-Regular assignment
-Regular reference
-
-STRUCT OPS
-should be in F
-They need to be evaluated first
+What hooks do we need?

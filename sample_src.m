@@ -16,9 +16,33 @@ prototypes
 	pt add_pt(pt, pt);
 	void print_ln(ln*);
 	ln mk_ln(int, int, int, int, int, int);
+	
+	int* malloc(int) hook;
+	void delete(int*) hook;
+	void print_ar(int*, int);
+	void assign_ar(int*, int);
 end
 
 functions
+	void assign_ar(int *a, int size) {
+		int i = 0;
+		while(i<size) {
+			a[i] = i*i;
+			i = i + 1;
+		}
+		return;
+	};
+	void print_ar(int *a, int size) {
+		int i = 0;
+		while(i<size) {
+			printvar(i);
+			print(": ");
+			printvar(a[i]);
+			print("\n");
+			i = i + 1;
+		}
+		return;
+	};
 	pt add_pt(pt a, pt b) {
 		a.x = a.x + b.x;
 		a.y = a.y + b.y;
@@ -63,10 +87,8 @@ q->x = 2;
 */
 
 begin
-	ln a = mk_ln(1, 2, 3, 4, 5, 6);
-	ln *b = &a;
-	print_ln(b);
-	*b = mk_ln(5, 6, 7, 8, 9, 10);
-	print_ln(b);
-	print_ln(&a);
+	int *a = int*(malloc(10*sizeof(int)));
+	assign_ar(a, 10);
+	print_ar(a, 10);
+	delete(a);
 end

@@ -8,7 +8,6 @@
 #include <vector>
 #include "Error.h"
 #include "SymTab.h"
-
 #define op_pushi 1
 #define op_halt 2
 #define op_pop 3
@@ -44,7 +43,8 @@
 #define OP_ADDRVAR 33
 #define OP_PUSHSTRING 34
 #define OP_POP_STRUCT_ELT 35
-
+#define OP_HOOK 36
+#define OP_ARRAYREF 37
 
 using namespace std;
 
@@ -97,6 +97,12 @@ public:
 class AddrVar: public Op{
 public:
 	AddrVar(){ code = OP_ADDRVAR; }
+	void run(Emulator &e);
+};
+
+class ArrayRef: public Op{
+public:
+	ArrayRef() { code = OP_ARRAYREF; }
 	void run(Emulator &e);
 };
 

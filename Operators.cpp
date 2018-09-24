@@ -113,7 +113,16 @@ C name(A a, B b) {\
  */
 OP_TMP_DEF(addOp, +)
 void Add::ptrRun(Emulator &e) {
-    binaryOperator<t_ptr, t_int, t_ptr>(e, addOp<t_ptr, t_int, t_ptr>);
+	t_ptr A;
+	t_int B;
+	
+	e.pop(sizeof(B), &B);
+	e.pop(sizeof(A), &A);
+	
+	int sign = A>=0?1:-1;
+	A += B*sign;
+	
+	e.push(sizeof(A), &A);
 }
 OP_RUN_DEF(Add, addOp, "ADD")
 
@@ -122,7 +131,16 @@ OP_RUN_DEF(Add, addOp, "ADD")
  */
 OP_TMP_DEF(subOp, -)
 void Sub::ptrRun(Emulator &e) {
-    binaryOperator<t_ptr, t_int, t_ptr>(e, subOp<t_ptr, t_int, t_ptr>);
+	t_ptr A;
+	t_int B;
+	
+	e.pop(sizeof(B), &B);
+	e.pop(sizeof(A), &A);
+	
+	int sign = A>=0?1:-1;
+	A -= B*sign;
+	
+	e.push(sizeof(A), &A);
 }
 OP_RUN_DEF(Sub, subOp, "SUB")
 

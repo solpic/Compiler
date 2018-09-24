@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "Type.h"
-//#include "Generator.h"
+#include "Generator.h"
 
 using namespace std;
 
@@ -16,6 +16,13 @@ using namespace std;
 
 struct DataHeader{
     unsigned int size;
+};
+
+
+
+enum HookCode{
+	HOOK_MALLOC = 1,
+	HOOK_DELETE = 2
 };
 
 const int numTypes = 2;
@@ -29,13 +36,15 @@ enum SymbolType{
     SYM_STRINGLIT = 4,
     SYM_CONTROL = 5,
     SYM_STRUCTDEF = 6,
-    Procedure = 7
+    Procedure = 7,
+    SYM_HOOK = 8
 };
 
 enum BuiltInFunction{
     F_PRINTNUM = 1,
     F_PRINT = 2,
-    F_READINT = 3
+    F_READINT = 3,
+    F_HOOK = 4
 };
 
 enum ControlType{
@@ -136,6 +145,9 @@ public:
     Type getRet() { return retVal; }
     bool retVoid() { return isVoid; }
     list<Type>* getArgs() { return &args; }
+    
+    bool isHook;
+    HookCode hookCode;
 private:
     int label;
     bool isVoid;

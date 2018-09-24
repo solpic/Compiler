@@ -23,6 +23,7 @@ SymbolType Function::getType() {
 Function::Function() {
     label = -1;
     isVoid = false;
+    isHook = false;
 }
 
 void Function::setLabel(int l) {

@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include "Error.h"
+#include "Hooks.h"
 
 #include <sstream>
 
@@ -176,9 +177,6 @@ Type Parser::typecast() {
 
     if(to_actual!=frm_actual) {
         g.addOp(new Typecast(to_actual, frm_actual), "typecast "+to.toString()+" to "+from.toString());
-    }else{
-        cout<<"Empty typecast from "<<from<<" to "<<to<<endl;
-        throwError();
     }
 
     return to;
@@ -204,9 +202,13 @@ void Parser::function(Function *f) {
     match(")");
     next();
 
-    g.addOp(new PushLbl(f->getLabel()), "push "+fname);
-
-    g.addOp(new Call(), "call");
+	if(!f->isHook) {
+		g.addOp(new PushLbl(f->getLabel()), "push "+fname);
+		g.addOp(new Call(), "call");
+	}else{
+		g.addOp(new PushI(sizeof(f->hookCode), &f->hookCode), "push hookcode");
+		g.addOp(new Hook(), "hook");
+	}
 }
 
 Type Parser::followStructChain(Type curType) {
@@ -232,12 +234,44 @@ Type Parser::followStructChain(Type curType) {
 			cout<<"Expected non-pointer struct, got "<<curType<<" at ";
 			throwError();
 		}
-	}else return curType;
+	}else if(testMatch("[")) {
+		if(curType.isPtr()) {
+			next();
+			Type type = E();
+			if(type!=Type::tInt()) {
+				cout<<"Expected int for reference into array, got "<<type<<" at ";
+				throwError();
+			}
+			
+			Type tmp = curType;
+			tmp.dereference();
+			t_int size = tmp.size();
+			
+			g.addOp(new PushI(sizeof(size), &size), "pushi sizeof "+tmp.toString());
+			g.addOp(new ArrayRef(), "array ref");
+			matchNext("]");
+			return followStructChain(tmp);
+		}else{
+			cout<<"Expected pointer for array reference, got "<<curType<<" at ";
+			throwError();
+		}
+	}else{
+		return curType;
+	}
 }
 
 Type Parser::F() {
     //NUM | (E) | VARIABLE | &VARIABLE | STRING_LIT | *E | typecast(E) | true | false | !F | -F
-    if(testMatch("!")) {
+    if(testMatch("sizeof")){
+		next();
+		matchNext("(");
+		Type type = Type::parse(t);
+		matchNext(")");
+		t_int size = type.size();
+		
+		g.addOp(new PushI(sizeof(size), &size), "pushi sizeof"+type.toString());
+		return Type::tInt();
+    }else if(testMatch("!")) {
         *pout<<prefix<<"!"<<endl;
         next();
         if(testMatch("!")) {
@@ -448,18 +482,45 @@ void Parser::assignment() {
 			next();
 		}else doneWithStructChain = true;
 	}
-    
-    match("=");
-    next();
+	
+	if(curType.isPtr()&&testMatchNext("[")) {
+		g.addOp(new Push(addr, size), "push "+varName);
+		Type v = E();
+		if(v!=Type::tInt()) {
+			cout<<"Expected int for array reference, got "<<v<<" at ";
+			throwError();
+		}
+		Type tmp = curType;
+		tmp.dereference();
+		
+		matchNext("]");
+		
+		t_int size = tmp.size();
+		g.addOp(new PushI(sizeof(size), &size), "pushi sizeof "+tmp.toString());
+		g.addOp(new Mult(Type::tInt().toSerializedType()), "mult");
+		g.addOp(new Add(curType.toSerializedType()), "add");
+		
+		matchNext("=");
+		Type q = E();
+		if(q!=tmp) {
+			cout<<"Can't assign "<<q<<" to "<<tmp<<" at ";
+			throwError();
+		}
+		
+		g.addOp(new PopToPtr(q.size()), "poptoptr");
+	}else{
+		match("=");
+		next();
 
-    Type v = E();
+		Type v = E();
 
-    if(!Type::equals(v, curType)) {
-        cout<<"Can't assign "<<v<<" to "<<curType<<" at ";
-        throwError();
-    }
+		if(!Type::equals(v, curType)) {
+			cout<<"Can't assign "<<v<<" to "<<curType<<" at ";
+			throwError();
+		}
 
-    g.addOp(new Pop(addr, size), "pop "+varName+":"+to_string(addr));
+		g.addOp(new Pop(addr, size), "pop "+varName+":"+to_string(addr));
+	}
 }
 
 void Parser::pointerAssignment() {
@@ -551,54 +612,6 @@ void Parser::controlStatement(Symbol *s) {
 		
 		g.addOp(new Label(endLabel), "L"+to_string(endLabel));
 	}
-    /*
-    if(s.cType==CIf) {
-    //If statement
-    next();
-    E();
-    match(":"); next();
-
-    int label = g.curLabel++;
-    g.addOp(Op::pushLbl(label));
-    asmOut+="pushlbl L"+to_string(label)+"\n";
-    g.addOp(Op::ifnotjump());
-    asmOut+="ifnjmp\n";
-
-    statements();
-    match("end"); next();
-
-    g.addOp(Op::label(label));
-    asmOut+="L"+to_string(label)+":\n";
-    }else if(s.cType==CWhile) {
-    //While statement
-    next();
-
-    int labelStart = g.curLabel++;
-    g.addOp(Op::label(labelStart));
-    asmOut+="L"+to_string(labelStart)+":\n";
-
-    E();
-    match(":"); next();
-    int labelEnd = g.curLabel++;
-
-    g.addOp(Op::pushLbl(labelEnd));
-    asmOut+="pushlbl L"+to_string(labelEnd)+"\n";
-    g.addOp(Op::ifnotjump());
-    asmOut+="ifnjmp\n";
-
-    statements();
-    match("end"); next();
-
-    g.addOp(Op::pushLbl(labelStart));
-    asmOut+="pushlbl L"+to_string(labelStart)+"\n";
-    g.addOp(Op::opJmp());
-    asmOut+="jmp\n";
-
-    g.addOp(Op::label(labelEnd));
-    asmOut+="L"+to_string(labelEnd)+":\n";
-
-    }
-    */
 }
 
 void Parser::builtInFunction(Symbol *s) {
@@ -623,6 +636,25 @@ void Parser::builtInFunction(Symbol *s) {
 		match(")"); next();
 		
 		g.addOp(new Print(), "print");
+	}else if(f->func==F_HOOK) {
+		next();
+		matchNext("(");
+		
+		HookCode hookCode;
+		if(!testMatchType(TK_STR_LIT)) {
+			cout<<"Expected string literal got "<<cur()->str()<<" at ";
+			throwError();
+		}else{
+			hookCode = matchHookCode(cur()->str()); next();
+		}
+		
+		
+		while(testMatchNext(",")) {
+			E();
+		}
+		matchNext(")");
+		g.addOp(new PushI(sizeof(hookCode), &hookCode), "pushi hookcode "+to_string(hookCode));
+		g.addOp(new Hook(), "hook");
 	}
 }
 
@@ -693,6 +725,7 @@ Parser::Parser(Tokenizer *tok) {
 
     sym.addBuiltInFunc("printvar", F_PRINTNUM);
     sym.addBuiltInFunc("print", F_PRINT);
+    sym.addBuiltInFunc("c_hook", F_HOOK);
     
     sym.addControlStatement("if", C_IF);
     sym.addControlStatement("while", C_WHILE);
@@ -972,6 +1005,10 @@ void Parser::func_decl() {
             throwError();
         }
     }
+    if(testMatchNext("hook")) {
+		f->isHook = true;
+		f->hookCode = matchHookCode(funcName);
+	}
     match(";");
     next();
 
